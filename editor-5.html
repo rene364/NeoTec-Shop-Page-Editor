@@ -1,0 +1,903 @@
+<!DOCTYPE html>
+<html lang="de">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Produktbeschreibung HTML Builder</title>
+    <!-- SortableJS für einfaches Drag & Drop laden -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Sortable/1.15.7/Sortable.min.js"></script>
+    <!-- Bootstrap 5 CSS für die Live-Vorschau laden -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com//ajax/libs/bootstrap/5.3.3/css/bootstrap.min.css">
+
+    <style>
+        :root {
+            --bg-color: #f4f5f7;
+            --border-color: #e0e0e0;
+            --primary-color: #0070f3;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            margin: 0;
+            display: flex;
+            height: 100vh;
+            background: var(--bg-color);
+        }
+
+        /* Seitenleiste mit Vorlagen */
+        .sidebar {
+            width: 280px;
+            background: white;
+            border-right: 1px solid var(--border-color);
+            padding: 20px;
+            box-sizing: border-box;
+        }
+
+        .sidebar h3 {
+            margin-top: 0;
+        }
+
+        .template-item {
+            background: #f9f9f9;
+            border: 1px dashed #b0b0b0;
+            padding: 12px;
+            margin-bottom: 10px;
+            cursor: grab;
+            border-radius: 6px;
+            user-select: none;
+            display: block;
+            /* Wichtig für Drag-Bereich */
+            transition: background 0.2s;
+        }
+
+        .template-item:hover {
+            background: #f0f0f0;
+        }
+
+        /* Hauptbereich: Nimmt die volle Resthöhe ein und scrollt nicht mehr als Ganzes */
+        .main-content {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            padding: 20px;
+            height: 100vh;
+            /* Zwingt den Editor auf die genaue Bildschirmhöhe */
+            box-sizing: border-box;
+            overflow: hidden;
+            /* Verhindert das Herausschieben des Quellcodes */
+        }
+
+        /* Die Arbeitsfläche (Canvas): Erhält eine feste maximale Höhe und scrollt intern */
+        .canvas {
+            background: white;
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 20px;
+            height: 550px;
+            /* Feste Höhe für die Arbeitsfläche */
+            overflow-y: auto;
+            /* Aktiviert den internen Scrollbalken bei vielen Elementen */
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.02);
+        }
+
+
+        /* Platzhalter, wenn Arbeitsfläche leer ist */
+        .canvas:empty::before {
+            content: "Bausteine hierher ziehen, um die Beschreibung aufzubauen...";
+            color: #aaa;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 200px;
+            border: 2px dashed #ccc;
+            border-radius: 6px;
+        }
+
+        /* Dynamisch erzeugte Bausteine auf dem Canvas */
+        .canvas-item {
+            background: white;
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            padding: 15px;
+            margin-bottom: 15px;
+            position: relative;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.04);
+            display: block;
+        }
+
+        .canvas-item .handle {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            cursor: move;
+            color: #aaa;
+            font-size: 18px;
+            user-select: none;
+        }
+
+        .canvas-item .delete-btn {
+            position: absolute;
+            bottom: 10px;
+            right: 10px;
+            background: #ff4d4f;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            padding: 4px 8px;
+            cursor: pointer;
+            font-size: 12px;
+        }
+
+        .canvas-item label {
+            display: block;
+            font-size: 12px;
+            font-weight: bold;
+            color: #666;
+            margin-bottom: 5px;
+        }
+
+        .canvas-item input,
+        .canvas-item textarea {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid var(--border-color);
+            border-radius: 4px;
+            box-sizing: border-box;
+            font-family: inherit;
+        }
+
+        /* HTML-Ausgabe-Bereich */
+        .output-area {
+            margin-top: 20px;
+            height: 200px;
+            background: #272822;
+            color: #f8f8f2;
+            padding: 15px;
+            border-radius: 6px;
+            font-family: monospace;
+            white-space: pre-wrap;
+            overflow-y: auto;
+        }
+
+        .btn-export {
+            align-self: flex-start;
+            background: var(--primary-color);
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: bold;
+        }
+    </style>
+    <style>
+        :root {
+            --blue: #007bff;
+            --indigo: #6610f2;
+            --purple: #6f42c1;
+
+            --pink: #e83e8c;
+            --red: #dc3545;
+
+            --orange: #fd7e14;
+            --yellow: #ffc107;
+
+            --green: #28a745;
+            --teal: #20c997;
+            --cyan: #17a2b8;
+
+            --white: #ffffff;
+            --gray: #707070;
+            --gray-dark: #343a40;
+            --primary: #F8BF00;
+            --secondary: #525252;
+            --success: #1C871E;
+            --info: #525252;
+            --warning: #f39932;
+            --danger: #b90000;
+            --light: #f5f7fa;
+            --dark: #525252;
+            --gray: #707070;
+            --gray-light: #f5f7fa;
+            --gray-medium: #ebebeb;
+            --gray-dark: #9b9b9b;
+            --gray-darker: #525252;
+            --breakpoint-xs: 0;
+            --breakpoint-sm: 576px;
+            --breakpoint-md: 768px;
+            --breakpoint-lg: 992px;
+            --breakpoint-xl: 1300px;
+            --font-family-sans-serif: "Open Sans", sans-serif;
+            --font-family-monospace: SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+        }
+    </style>
+</head>
+
+<body>
+
+    <!-- SIDERBAR: Die Baustein-Vorlagen -->
+    <div class="sidebar" id="sidebar">
+        <h3>Bausteine</h3>
+        <!-- draggable="true" erzwingt das Ziehen im Browser -->
+        <div class="template-item" data-type="heading" draggable="true">🏷️ Überschrift</div>
+        <div class="template-item" data-type="subheading" draggable="true">📝 Unterüberschrift (Lead)</div>
+        <div class="template-item" data-type="section-heading" draggable="true">🏷️ Zwischenüberschrift (H5)</div>
+        <div class="template-item" data-type="text" draggable="true">📝 Textabsatz</div>
+        <div class="template-item" data-type="list" draggable="true">📋 Feature-Liste</div>
+        <div class="template-item" data-type="badges" draggable="true">🏷️ Feature-Badges</div>
+        <div class="template-item" data-type="display-list" draggable="true">📺 Display-Werte</div>
+        <div class="template-item" data-type="info-box" draggable="true">ℹ️ Info-Box (Alert)</div>
+        <div class="template-item" data-type="footer-links" draggable="true">🐾 Fußzeile (Links)</div>
+        <div class="template-item" data-type="custom-html" draggable="true">💻 Eigener HTML-Code</div>
+    </div>
+
+    <!-- HAUPTBEREICH: Aufgeteilt in Editor und Live-Vorschau -->
+    <div class="main-content">
+        <h2>Produktbeschreibung Editor</h2>
+
+        <!-- Flexbox-Container für nebeneinanderliegende Ansicht -->
+        <div style="display: flex; gap: 20px; flex: 1; min-height: 0;">
+
+            <!-- Linke Seite: Die Arbeitsfläche (Canvas) -->
+            <div style="flex: 1; display: flex; flex-direction: column;">
+                <h4>Arbeitsfläche</h4>
+                <div class="canvas" id="canvas"></div>
+            </div>
+
+            <!-- Rechte Seite: Echte Bootstrap Live-Vorschau -->
+            <div style="flex: 1; display: flex; flex-direction: column;">
+                <h4>Live-Vorschau (Bootstrap CSS aktiv)</h4>
+                <!-- WICHTIG: height: 350px hält es synchron zum Canvas -->
+                <div id="live-preview" class="p-3 bg-white border rounded" style="height: 550px; overflow-y: auto;">
+                    <p class="text-muted">Noch keine Inhalte vorhanden...</p>
+                </div>
+            </div>
+
+        </div>
+
+        <!-- Code-Ausgabe-Bereich: Jetzt mit Kopier-Button -->
+        <div style="flex-shrink: 0; margin-top: 15px;">
+            <div style="display: flex; align-items: center;">
+                <h4>Generierter HTML-Code</h4>
+
+                <!-- Eine Gruppe für die Buttons, die sich automatisch nach rechts schiebt -->
+                <div style="margin-left: auto; display: flex; align-items: center; gap: 8px;">
+                    <!-- Der Kopier-Button -->
+                    <button id="btn-copy" class="btn-export"
+                        style="background: #6f42c1; padding: 5px 15px; font-size: 14px;"
+                        onclick="copyHTMLToClipboard()">
+                        📋 Code kopieren
+                    </button>
+
+                    <!-- NEU: Eingabefeld für den Dateinamen -->
+                    <div
+                        style="display: flex; align-items: center; background: #343a40; padding: 2px 8px; border-radius: 4px; border: 1px solid #6c757d;">
+                        <input type="text" id="project-filename" value="produktbeschreibung"
+                            style="background: transparent; color: #fff; border: none; font-size: 14px; width: 180px; outline: none;"
+                            placeholder="Dateiname">
+                        <span style="color: #6c757d; font-size: 14px; user-select: none;">.json</span>
+                    </div>
+
+                    <!-- Speichern-Button -->
+                    <button class="btn-export" style="padding: 5px 15px; font-size: 14px;" onclick="saveProject()">💾
+                        Projekt Speichern</button>
+
+                    <!-- Laden-Button -->
+                    <button class="btn-export" style="background: #28a745; padding: 5px 15px; font-size: 14px;"
+                        onclick="document.getElementById('file-input').click()">📂 Projekt Laden</button>
+                    <input type="file" id="file-input" style="display: none;" accept=".json"
+                        onchange="loadProject(this)">
+                </div>
+
+            </div>
+            <div class="output-area" id="html-output" style="height: 150px; margin-top: 5px;">&lt;!-- Hier erscheint
+                dein HTML-Code --&gt;</div>
+        </div>
+        
+    </div>
+
+    <script>
+        // 1. Globale Hilfsfunktionen (müssen außerhalb stehen, damit onclick/oninput sie finden)
+
+        // HTML-Vorlagen für die Eingabefelder im Canvas erzeugen
+        function createInputTemplate(type) {
+            const handle = `<div class="handle">⋮⋮</div>`;
+            const deleteBtn = `<button class="delete-btn" onclick="this.parentElement.remove(); updateHTMLOutput();">Löschen</button>`;
+
+            if (type === 'heading') {
+                return `${handle}
+                <div data-comp-type="heading">
+                    <label>ÜBERSCHRIFT (H2)</label>
+                    <input type="text" value="MID zugelassener, digitaler, multifunktionaler und bidirektional messender 1‑Phasen-Wechselstromzähler" oninput="updateHTMLOutput()">
+                </div>${deleteBtn}`;
+            }
+            if (type === 'text') {
+                return `${handle}
+                <div data-comp-type="text">
+                    <label>TEXTABSATZ</label>
+                    <textarea rows="3" oninput="updateHTMLOutput()">Schreiben Sie hier Details über Ihr Produkt...</textarea>
+                </div>${deleteBtn}`;
+            }
+            if (type === 'list') {
+                return `${handle}
+                <div data-comp-type="list">
+                    <label>LISTENELEMENTE (semikolontrennt)</label>
+                    <textarea rows="3" oninput="updateHTMLOutput()">Verbrauchsüberwachung bei Camping, Ferienappartements, Garagenkomplexen, Büros, Untervermietungen, Einliegerwohnungen, Baustromverteilern, Verkaufswagen oder Verteilern auf Wochenmärkten; Energy-Management-Systeme, Prüfmessungen von Verteilungen; Verbrauchsermittlung an Heizungen oder Pumpen; Steuerungs- und Verteilerbau, Regeltechnik; Für Prüfmessungen bei geringen Platzverhältnissen; Gebäudeautomation, Klimatechnik, BHKW; Schaltanlagenbau, Gewerbe und Installationshandwerk; Allgemeine Verbrauchsmessungen in/von Unterverteilungen für Abrechnung gegenüber Dritten geeignet; geeichte / MID-zugelassene Ausführung für Abrechnungszwecke geeignet! Zulassung beträgt 8 Jahre ab Eichjahr</textarea>
+                    <!--<input type="text" rows="3" value="Verbrauchsüberwachung bei Camping, Ferienappartements, Garagenkomplexen, Büros, Untervermietungen, Einliegerwohnungen, Baustromverteilern, Verkaufswagen oder Verteilern auf Wochenmärkten; Energy-Management-Systeme, Prüfmessungen von Verteilungen; Verbrauchsermittlung an Heizungen oder Pumpen; Steuerungs- und Verteilerbau, Regeltechnik; Für Prüfmessungen bei geringen Platzverhältnissen; Gebäudeautomation, Klimatechnik, BHKW; Schaltanlagenbau, Gewerbe und Installationshandwerk; Allgemeine Verbrauchsmessungen in/von Unterverteilungen für Abrechnung gegenüber Dritten geeignet; geeichte / MID-zugelassene Ausführung für Abrechnungszwecke geeignet! Zulassung beträgt 8 Jahre ab Eichjahr " oninput="updateHTMLOutput()">-->
+                </div>${deleteBtn}`;
+            }
+            if (type === 'badges') {
+                return `${handle}
+            <div data-comp-type="badges">
+                <label>FEATURE-BADGES (Kommagetrennt)</label>
+                <input type="text" value="WS100-1943; MID 2026; Abrechnung; Rückstellbar; Rücklaufsperre; Tageszählwerk; Import; 100A; 230V/AC; S0 opt./elek.; RS485; Zählerplatzmontage; 1TE; LCD beleuchtet; Manipulationsschutz; Multitarif" oninput="updateHTMLOutput()">
+            </div>${deleteBtn}`;
+            }
+            if (type === 'display-list') {
+                return `${handle}
+            <div data-comp-type="display-list">
+                <label>DISPLAY-WERTE (Format: Kürzel = Beschreibung ; )</label>
+                <textarea rows="4" oninput="updateHTMLOutput()">kW = aktive / momentane Last in Kilowatt (kW);
+                kWh = aktive / verbrauchte Energie in kWh (Gesamt- und Tageszähler);
+                V = Spannung in Volt;
+                A = Strom in Ampere;
+                F = Netzfrequenz in Hertz (Hz);
+                PF = Leistungsfaktor (cos φ)</textarea>
+            </div>${deleteBtn}`;
+            }
+
+            if (type === 'info-box') {
+                return `${handle}
+            <div data-comp-type="info-box">
+                <label>INFO-BOX (Format: Titel: Text...)</label>
+                <textarea rows="3" oninput="updateHTMLOutput()">Rechtlicher Hinweis: Die Ausführung ist MID-zugelassen und für verbrauchsabhängige Abrechnungen gegenüber Dritten gesetzlich gültig. Die Eichgültigkeit der MID beträgt <strong>8 Jahre</strong> ab dem Eichjahr.</textarea>
+            </div>${deleteBtn}`;
+            }
+
+            if (type === 'footer-links') {
+                return `${handle}
+            <div data-comp-type="footer-links">
+                <label>DOWNLOAD-LINK (URL zur Anleitung/PDF)</label>
+                <input type="text" value="https://www.digitalzaehler.com/mediafiles/Manuals/ws50-1xxx_de.pdf" oninput="updateHTMLOutput()">
+            </div>${deleteBtn}`;
+            }
+
+            if (type === 'custom-html') {
+                return `${handle}
+            <div data-comp-type="custom-html">
+                <label>EIGENER HTML-CODE (Wird direkt im Shop/Vorschau ausgegeben)</label>
+                <textarea rows="6" style="font-family: monospace; background: #f8f9fa;" oninput="updateHTMLOutput()"><!-- Hier eigenen HTML-Code eintragen -->\n<div class="p-3 bg-light text-center border rounded">Code-Beispiel</div></textarea>
+            </div>${deleteBtn}`;
+            }
+
+            if (type === 'subheading') {
+                return `${handle}
+            <div data-comp-type="subheading">
+                <label>UNTERÜBERSCHRIFT (LEAD-TEXT)</label>
+                <input type="text" value="Der DRS255BC ist ein summierender Zähler mit frei rückstellbarem Tageszählwerk." oninput="updateHTMLOutput()">
+            </div>${deleteBtn}`;
+            }
+
+            if (type === 'section-heading') {
+                return `${handle}
+            <div data-comp-type="section-heading">
+                <label>ZWISCHENÜBERSCHRIFT (H5)</label>
+                <input type="text" value="Echtzeit-Messwerte auf dem LCD-Display" oninput="updateHTMLOutput()">
+            </div>${deleteBtn}`;
+            }
+
+            return '';
+        }
+
+        // HTML Generator: Liest das Canvas von oben nach unten aus
+        function updateHTMLOutput() {
+            const canvas = document.getElementById('canvas');
+            const htmlOutput = document.getElementById('html-output');
+            if (!canvas || !htmlOutput) return;
+
+            const items = canvas.querySelectorAll('.canvas-item [data-comp-type]');
+            let generatedHTML = '';
+
+            items.forEach(item => {
+                const type = item.getAttribute('data-comp-type');
+
+                if (type === 'heading') {
+                    const value = item.querySelector('input').value;
+                    // KORREKTUR: Erzeugt exakt h1 mit den Klassen h2 und mb-2
+                    generatedHTML += `<!-- ÜBERSCHRIFT -->\n`;
+                    generatedHTML += `<h1 class="h2 mb-2">${escapeHTML(value)}</h1>\n`;
+                }
+
+                else if (type === 'text') {
+                    const value = item.querySelector('textarea').value;
+                    const formattedText = escapeHTML(value).replace(/\n/g, '<br>\n');
+                    generatedHTML += `<!-- BESCHREIBUNGSTEXT -->\n`;
+                    generatedHTML += `<p>${formattedText}</p>\n`;
+                }
+                else if (type === 'list') {
+                    // KORREKTUR: Liest nun die neue textarea aus statt des inputs
+                    const value = item.querySelector('textarea').value;
+
+                    // Trennt den Text bei jedem Semikolon (;) statt beim Komma
+                    const listItems = value.split(';').map(i => i.trim()).filter(i => i.length > 0);
+
+                    generatedHTML += `<!-- LISTE -->\n`;
+                    generatedHTML += `<div class="application-examples mb-5">\n`;
+                    //generatedHTML += `<h3 class="h4 font-weight-bold mb-4">Typische Anwendungsbereiche</h3>\n`;
+                    generatedHTML += `<ul>\n`;
+                    listItems.forEach(li => {
+                        generatedHTML += `  <li>${escapeHTML(li)}</li>\n`;
+                    });
+                    generatedHTML += `</ul>\n`;
+                    generatedHTML += `</div>\n`;
+                }
+                else if (type === 'badges') {
+                    const value = item.querySelector('input').value;
+                    const badgeItems = value.split(';').map(b => b.trim()).filter(b => b.length > 0);
+
+                    generatedHTML += `<!-- BADGES -->\n`;
+                    generatedHTML += `    <div class="feature-badges mb-4 ">\n`;
+
+                    badgeItems.forEach(badgeText => {
+                        const key = badgeText.toLowerCase();
+
+                        // 1. Standard-Konfigurationen (Fallback-Werte)
+                        let url = 'https://digitalzaehler.com';
+                        let target = '_blank';
+                        let color = 'var(--gray-dark)';
+                        let textClass = 'text-light';
+
+                        // 2. Dynamische Mustererkennung per regulärem Ausdruck (Regex) oder Text-Prüfung
+
+                        // MUSTER A: Stromstärke (z.B. 50A, 60A, 16 Ampere, 10(100)A)
+                        // Prüft, ob irgendwo eine Zahl steht, gefolgt von einem optionalen Leerzeichen und einem "a" am Ende, ODER ob das Wort "ampere" vorkommt.
+                        if (/\d+\s*a$/.test(key) || key.includes('amp')) {
+                            url = 'https://www.digitalzaehler.com/Lexikon#faq-grenzstrom';
+                            color = 'var(--cyan)';
+                        }
+                        // MUSTER B: Spannung (z.B. 230V, 400V, 230V/AC)
+                        else if (/\d+\s*v/.test(key) || key.includes('volt')) {
+                            url = 'https://www.digitalzaehler.com/Lexikon#faq-spannung';
+                            color = 'var(--yellow)';
+                            textClass = 'text-dark'; // Gelb braucht dunklen Text
+                        }
+                        // MUSTER C: Teilungseinheiten (z.B. 2TE, 1TE, 4 TE, 2-TE)
+                        // Prüft, ob eine Zahl steht, gefolgt von optionalen Zeichen und dem Kürzel "te" am Ende, ODER ob das Wort "teilung" vorkommt.
+                        else if (/\d+.*te$/.test(key) || key.includes('teilung')) {
+                            url = 'https://www.digitalzaehler.com/Lexikon#faq-teilungseinheit';
+                            color = 'var(--purple)';
+                        }
+
+                        // 3. Exakte Begriffe abgleichen (für alles, was keine Zahlenmuster hat)
+                        else if (key.includes('drs') || key.includes('ws') || key.includes('flds') || key.includes('flws') || key.includes('sdm') || key.includes('spm') || key.includes('drt') || key.includes('ds') || key.includes('dcm') || key.includes('rd') || key.includes('esrd') || key.includes('sct') || key.includes('shunt') || key.includes('nt-mfs-db') || key.includes('gs-16')) {
+                            url = '';
+                            target = '_self';
+                            color = 'var(--blue)';
+                        }
+                        else if (key === 'rückstellbar') {
+                            url = 'https://www.digitalzaehler.com/Lexikon#faq-rueckstellbar';
+                            color = 'var(--orange)';
+                        }
+                        else if (key === 'tageszählwerk') {
+                            url = 'https://www.digitalzaehler.com/Lexikon#faq-tageszaehlwerk';
+                            color = 'var(--green)';
+                        }
+                        else if (key === 'import' || key === 'einrichtungszähler') {
+                            url = 'https://www.digitalzaehler.com/Lexikon#faq-einrichtungszaehler';
+                            color = 'var(--teal)';
+                        }
+                        else if ((key === 'import' && key === 'export') || key === 'zweirichtungszähler') {
+                            url = 'https://www.digitalzaehler.com/Lexikon#faq-einrichtungszaehler';
+                            color = 'var(--teal)';
+                        }
+                        else if (key.includes('s0')) {
+                            url = 'https://www.digitalzaehler.com/Lexikon#faq-s0-schnittstelle';
+                            color = 'var(--indigo)';
+                        }
+                        else if (key.includes('rs485')) {
+                            url = 'https://www.digitalzaehler.com/Lexikon#faq-rs485-schnittstelle';
+                            color = 'var(--indigo)';
+                        }
+                        else if (key.includes('lcd')) {
+                            url = 'https://www.digitalzaehler.com/Lexikon#faq-lcd';
+                            color = 'var(--gray-dark)';
+                        }
+                        else if (key.includes('abrechnung')) {
+                            url = 'https://www.digitalzaehler.com/Lexikon#faq-abrechnung';
+                            color = 'var(--red)';
+                        }
+                        else if (key.includes('mid')) {
+                            url = 'https://www.digitalzaehler.com/Lexikon#faq-mid-zulassung';
+                            color = 'var(--pink)';
+                        }
+                        else if (key.includes('rücklaufsperre')) {
+                            url = 'https://www.digitalzaehler.com/Lexikon#faq-ruecklaufgesperrt';
+                            color = 'var(--dark)';
+                        }
+                        else if (key.includes('zählerplatz')) {
+                            url = 'https://www.digitalzaehler.com/Lexikon#faq-zaehlerplatzmontage';
+                            color = 'var(--purple)';
+                        }
+                        else if (key.includes('manipulation')) {
+                            url = 'https://www.digitalzaehler.com/Lexikon#faq-faq-manipulationsschutz';
+                            color = 'var(--gray)';
+                        }
+                        else if (key.includes('multitarif')) {
+                            url = 'https://www.digitalzaehler.com/Lexikon#faq-faq-multitarif';
+                            color = '#a825c2;';
+                        }
+
+
+                        // 4. HTML zusammenbauen
+                        generatedHTML += `        <a href="${url}" target="${target}"><span\n`;
+                        generatedHTML += `                class="badge ${textClass} p-2 me-1 mb-1" style="background-color: ${color};">${escapeHTML(badgeText)}</span></a>\n`;
+                    });
+
+                    generatedHTML += `    </div>\n`;
+                }
+                else if (type === 'display-list') {
+                    const value = item.querySelector('textarea').value;
+                    // Trennt die Zeilen am Semikolon
+                    const lines = value.split(';').map(l => l.trim()).filter(l => l.length > 0);
+
+                    generatedHTML += `<!-- DISPLAY LIST -->\n`;
+                    generatedHTML += `    <ul class="list-group list-group-flush mb-4" style="max-width: 600px;">\n`;
+
+                    lines.forEach(line => {
+                        // Trennt das Kürzel von der Beschreibung am ersten "=" Zeichen
+                        const parts = line.split('=');
+                        if (parts.length >= 2) {
+                            const kuerzel = parts[0].trim();
+                            // Falls es mehrere "=" gab, fügen wir den Rest der Beschreibung wieder zusammen
+                            const beschreibung = parts.slice(1).join('=').trim();
+
+                            generatedHTML += `        <li class="list-group-item py-1 px-0">\n`;
+                            generatedHTML += `            <strong>${escapeHTML(kuerzel)}</strong> - ${escapeHTML(beschreibung)}\n`;
+                            generatedHTML += `        </li>\n`;
+                        } else {
+                            // Fallback, falls mal ein "=" vergessen wurde, wird die ganze Zeile normal ausgegeben
+                            generatedHTML += `        <li class="list-group-item py-1 px-0">${escapeHTML(line)}</li>\n`;
+                        }
+                    });
+
+                    generatedHTML += `    </ul>\n`;
+                }
+
+                else if (type === 'info-box') {
+                    const value = item.querySelector('textarea').value;
+
+                    // 1. Umlaute konvertieren, aber den Text für die Code-Box sicher machen
+                    const processedValue = escapeHTML(value);
+
+                    // Trennt den Titel vom Text beim ersten Doppelpunkt
+                    const colonIndex = processedValue.indexOf(':');
+
+                    let boxHTML = '';
+                    boxHTML += `<!-- INFO BOX -->\n`;
+                    boxHTML += `    <div class="alert alert-info mt-4 border-0" role="alert">\n`;
+
+                    if (colonIndex !== -1) {
+                        const titel = processedValue.substring(0, colonIndex).trim();
+                        const text = processedValue.substring(colonIndex + 1).trim();
+
+                        boxHTML += `<strong>${titel}:</strong> ${text}\n`;
+                    } else {
+                        boxHTML += processedValue;
+                    }
+
+                    boxHTML += `</div>\n`;
+
+                    // 2. Den Code ganz normal für die Quellcode-Ausgabe sichern
+                    generatedHTML += boxHTML;
+
+                    // 3. SPEZIAL-FIX FÜR DIE LIVE-VORSCHAU: 
+                    // Wir erlauben der Live-Vorschau explizit, die entwerteten <strong> Tags wieder als echtes HTML zu parsen
+                    setTimeout(() => {
+                        const livePreview = document.getElementById('live-preview');
+                        if (livePreview) {
+                            // Repariert die codierten spitzen Klammern exakt für die Darstellung im Vorschaufenster
+                            livePreview.innerHTML = livePreview.innerHTML
+                                .replace(/&lt;strong&gt;/g, '<strong>')
+                                .replace(/&lt;\/strong&gt;/g, '</strong>');
+                        }
+                    }, 0);
+                }
+
+                else if (type === 'footer-links') {
+                    const manualUrl = item.querySelector('input').value.trim();
+
+                    generatedHTML += `<!-- FOOTER LINKS -->\n`;
+                    generatedHTML += `    <div class="additional-links text-center py-3 bg-white rounded d-flex flex-wrap justify-content-center align-items-center" style="gap: 20px;">\n`;
+                    // 1. Dynamischer Download-Button mit der eingetragenen URL
+                    generatedHTML += `        <a class="btn btn-sm btn-primary" href="${escapeHTML(manualUrl)}">💾 Downloads &ouml;ffnen </a>\n`;
+                    // 2. Fixer Lexikon-Button
+                    generatedHTML += `        <a class="btn btn-sm btn-outline-secondary" href="https://www.digitalzaehler.com/Lexikon" style="color: var(--dark);"> 💡 Fachbegriffe im Lexikon erkl&auml;ren </a>\n`;
+                    generatedHTML += `    </div>\n`;
+                }
+                else if (type === 'custom-html') {
+                    const rawHTML = item.querySelector('textarea').value;
+
+                    // Wir verpacken den Code in eindeutige Marker-Kommentare, 
+                    // damit die Vorschau weiß, wo der rohe Code anfängt und aufhört
+                    generatedHTML += `<!-- CUSTOM-HTML-START -->\n${rawHTML}\n<!-- CUSTOM-HTML-END -->\n`;
+
+                    // SPEZIAL-FIX FÜR DIE LIVE-VORSCHAU:
+                    // Wir erlauben dem Vorschaufenster, die vom globalen textContent entwerteten Klammern 
+                    // dieses spezifischen Bausteins wieder in echtes, renderbares HTML zurückzuwandeln.
+                    setTimeout(() => {
+                        const livePreview = document.getElementById('live-preview');
+                        if (livePreview) {
+                            // Wir schneiden den Bereich zwischen unseren Markern aus und wandeln die Entities zurück
+                            const regex = /&lt;!-- CUSTOM-HTML-START --&gt;([\s\(\S\)]*?)&lt;!-- CUSTOM-HTML-END --&gt;/g;
+                            livePreview.innerHTML = livePreview.innerHTML.replace(regex, (match, code) => {
+                                // Konvertiert die Sicherheits-Entities zurück in echte HTML-Klammern
+                                return code
+                                    .replace(/&lt;/g, '<')
+                                    .replace(/&gt;/g, '>')
+                                    .replace(/&amp;/g, '&')
+                                    .replace(/&quot;/g, '"')
+                                    .replace(/&#39;/g, "'");
+                            });
+                        }
+                    }, 0);
+                }
+
+                else if (type === 'subheading') {
+                    const value = item.querySelector('input').value;
+                    // Erzeugt exakt das gewünschte p-Tag mit den Klassen lead und text-muted
+                    generatedHTML += `<!-- UNTERÜBERSCHRIFT -->\n`;
+                    generatedHTML += `<p class="lead text-muted">${escapeHTML(value)}</p>\n`;
+                }
+
+                else if (type === 'section-heading') {
+                    const value = item.querySelector('input').value;
+                    // Erzeugt exakt das gewünschte h5-Tag mit fetter Schrift und Abständen
+                    generatedHTML += `<!-- ZWISCHENÜBERSCHRIFT (H5) -->\n`;
+                    generatedHTML += `<h5 class="font-weight-bold mt-4 mb-2">${escapeHTML(value)}</h5>\n`;
+                }
+
+
+            });
+
+            htmlOutput.textContent = generatedHTML || '';
+
+            // Schreibt den Code als echtes, gerendertes HTML in den Bootstrap-Container
+            const livePreview = document.getElementById('live-preview');
+            if (livePreview) {
+                livePreview.innerHTML = generatedHTML || '<p class="text-muted">Noch keine Inhalte vorhanden...</p>';
+            }
+
+        }
+
+        // Hilfsfunktion gegen XSS, HTML-Fehler und zur Umlaut-Konvertierung
+        function escapeHTML(str) {
+            // 1. Zuerst die Standard-HTML-Sicherheitszeichen ersetzen
+            let escaped = str.replace(/[&<>'"]/g,
+                tag => ({
+                    '&': '&amp;',
+                    '<': '&lt;',
+                    '>': '&gt;',
+                    "'": '&#39;',
+                    '"': '&quot;'
+                }[tag] || tag)
+            );
+
+            // 2. Danach deutsche Umlaute und Sonderzeichen in HTML-Entities umwandeln
+            const umlautMap = {
+                'ä': '&html;&auml;', 'ö': '&ouml;', 'ü': '&uuml;',
+                'Ä': '&Auml;', 'Ö': '&Ouml;', 'Ü': '&Uuml;',
+                'ß': '&szlig;'
+            };
+
+            //return escaped.replace(/[äöüÄÖÜß]/g, match => umlautMap[match]);
+            return escaped;
+        }
+
+
+        // 2. Drag & Drop Initialisierung nach dem Laden der Seite
+        document.addEventListener("DOMContentLoaded", function () {
+            const sidebar = document.getElementById('sidebar');
+            const canvas = document.getElementById('canvas');
+
+            // Prüfen, ob Sortable geladen wurde
+            if (typeof Sortable === 'undefined') {
+                alert("Fehler: Die Drag&Drop-Bibliothek konnte nicht geladen werden.");
+                return;
+            }
+
+            // SortableJS für die Seitenleiste
+            new Sortable(sidebar, {
+                group: {
+                    name: 'shared',
+                    pull: 'clone',
+                    put: false
+                },
+                sort: false,
+                animation: 150
+            });
+
+            // SortableJS für die Arbeitsfläche (Canvas)
+            new Sortable(canvas, {
+                group: 'shared',
+                animation: 150,
+                onAdd: function (evt) {
+                    const item = evt.item;
+                    const type = item.getAttribute('data-type');
+
+                    if (type) {
+                        item.className = 'canvas-item';
+                        item.removeAttribute('data-type');
+                        item.removeAttribute('draggable');
+                        item.innerHTML = createInputTemplate(type);
+                    }
+                    updateHTMLOutput();
+                },
+                onUpdate: function () {
+                    updateHTMLOutput();
+                }
+            });
+        });
+
+        function saveProject() {
+            const canvas = document.getElementById('canvas');
+            const items = canvas.querySelectorAll('.canvas-item');
+            const projectData = [];
+
+            items.forEach(item => {
+                const compContainer = item.querySelector('[data-comp-type]');
+                if (!compContainer) return;
+
+                const type = compContainer.getAttribute('data-comp-type');
+
+                if (type === 'heading') {
+                    projectData.push({ type: 'heading', value: compContainer.querySelector('input').value });
+                }
+                else if (type === 'text') {
+                    projectData.push({ type: 'text', value: compContainer.querySelector('textarea').value });
+                }
+                else if (type === 'list') {
+                    // KORREKTUR: querySelector auf 'textarea' geändert
+                    projectData.push({ type: 'list', value: compContainer.querySelector('textarea').value });
+                }
+                else if (type === 'badges') {
+                    projectData.push({ type: 'badges', value: compContainer.querySelector('input').value });
+                }
+                else if (type === 'display-list') {
+                    projectData.push({ type: 'display-list', value: compContainer.querySelector('textarea').value });
+                }
+                else if (type === 'info-box') {
+                    projectData.push({ type: 'info-box', value: compContainer.querySelector('textarea').value });
+                }
+                else if (type === 'footer-links') {
+                    projectData.push({ type: 'footer-links', value: compContainer.querySelector('input').value });
+                }
+                else if (type === 'custom-html') {
+                    projectData.push({ type: 'custom-html', value: compContainer.querySelector('textarea').value });
+                }
+                else if (type === 'subheading') {
+                    projectData.push({ type: 'subheading', value: compContainer.querySelector('input').value });
+                }
+                else if (type === 'section-heading') {
+                    projectData.push({ type: 'section-heading', value: compContainer.querySelector('input').value });
+                }
+
+            });
+
+            // 2. Den Dateinamen aus dem Eingabefeld auslesen
+            const filenameInput = document.getElementById('project-filename');
+            let filename = filenameInput ? filenameInput.value.trim() : 'produktbeschreibung';
+
+            // Fallback, falls das Feld komplett leer gelöscht wurde
+            if (!filename) {
+                filename = 'produktbeschreibung';
+            }
+
+            // Sicherstellen, dass die Endung .json angehängt wird
+            const fullFilename = filename.endsWith('.json') ? filename : `${filename}.json`;
+
+            // 3. Datei-Download triggern
+            const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(projectData, null, 4));
+            const downloadAnchorNode = document.createElement('a');
+            downloadAnchorNode.setAttribute("href", dataStr);
+            downloadAnchorNode.setAttribute("download", fullFilename); // Hier greift der dynamische Name!
+            document.body.appendChild(downloadAnchorNode);
+            downloadAnchorNode.click();
+            downloadAnchorNode.remove();
+        }
+
+        function loadProject(input) {
+            const file = input.files[0]; // Greift direkt auf die Datei zu
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = function (e) {
+                try {
+                    const projectData = JSON.parse(e.target.result);
+                    const canvas = document.getElementById('canvas');
+
+                    canvas.innerHTML = '';
+
+                    projectData.forEach(comp => {
+                        const item = document.createElement('div');
+                        item.className = 'canvas-item';
+
+                        // Vorlagen-HTML generieren und ins Canvas hängen
+                        item.innerHTML = createInputTemplate(comp.type);
+                        canvas.appendChild(item);
+
+                        // Werte in die Eingabefelder zurückschreiben
+                        if (comp.type === 'heading') {
+                            item.querySelector('input').value = comp.value;
+                        }
+                        else if (comp.type === 'text') {
+                            item.querySelector('textarea').value = comp.value;
+                        }
+                        else if (comp.type === 'list') {
+                            // KORREKTUR: Schreibt den geladenen Text in die 'textarea' zurück
+                            item.querySelector('textarea').value = comp.value;
+                        }
+                        else if (comp.type === 'badges') {
+                            item.querySelector('input').value = comp.value;
+                        }
+                        else if (comp.type === 'display-list') {
+                            item.querySelector('textarea').value = comp.value;
+                        }
+                        else if (comp.type === 'info-box') {
+                            item.querySelector('textarea').value = comp.value;
+                        }
+                        else if (comp.type === 'footer-links') {
+                            item.querySelector('input').value = comp.value;
+                        }
+                        else if (comp.type === 'custom-html') {
+                            item.querySelector('textarea').value = comp.value;
+                        }
+                        else if (comp.type === 'subheading') {
+                            item.querySelector('input').value = comp.value;
+                        }
+                        else if (comp.type === 'section-heading') {
+                            item.querySelector('input').value = comp.value;
+                        }
+
+                    });
+
+                    // HTML-Code-Ausgabe ganz am Ende aktualisieren
+                    updateHTMLOutput();
+                    input.value = '';
+
+                } catch (error) {
+                    alert("Fehler beim Laden der Projektdatei. Ist die Datei beschädigt?");
+                    console.error(error);
+                }
+            };
+            reader.readAsText(file);
+        }
+
+        function copyHTMLToClipboard() {
+            const htmlOutput = document.getElementById('html-output');
+            const copyBtn = document.getElementById('btn-copy');
+
+            if (!htmlOutput || !htmlOutput.textContent) return;
+
+            // Den Textinhalt der Code-Box in die Zwischenablage schreiben
+            navigator.clipboard.writeText(htmlOutput.textContent)
+                .then(() => {
+                    // Visuelles Feedback: Button kurz grün färben und Text ändern
+                    const originalText = copyBtn.innerHTML;
+                    const originalBg = copyBtn.style.backgroundColor;
+
+                    copyBtn.innerHTML = "✅ Kopiert!";
+                    copyBtn.style.backgroundColor = "#28a745";
+
+                    // Nach 2 Sekunden den Button wieder in den Originalzustand versetzen
+                    setTimeout(() => {
+                        copyBtn.innerHTML = originalText;
+                        copyBtn.style.backgroundColor = originalBg;
+                    }, 2000);
+                })
+                .catch(err => {
+                    alert("Fehler beim Kopieren in die Zwischenablage: " + err);
+                });
+        }
+
+    </script>
