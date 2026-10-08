@@ -294,7 +294,7 @@
             <div class="output-area" id="html-output" style="height: 150px; margin-top: 5px;">&lt;!-- Hier erscheint
                 dein HTML-Code --&gt;</div>
         </div>
-        
+
     </div>
 
     <script>
@@ -398,6 +398,9 @@
 
             const items = canvas.querySelectorAll('.canvas-item [data-comp-type]');
             let generatedHTML = '';
+
+            generatedHTML += `<!--Tab: Beschreibung-->\n`;
+            generatedHTML += `<div class="product-description">\n`;
 
             items.forEach(item => {
                 const type = item.getAttribute('data-comp-type');
@@ -660,6 +663,7 @@
 
             });
 
+            generatedHTML += `<div>`;
             htmlOutput.textContent = generatedHTML || '';
 
             // Schreibt den Code als echtes, gerendertes HTML in den Bootstrap-Container
