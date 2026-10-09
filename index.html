@@ -6,7 +6,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Produktbeschreibung HTML Builder</title>
 
-    <!-- NeoTec GmbH 01979 Lauchhammer / Germany v1.0 -->
+    <!-- NeoTec GmbH 01979 Lauchhammer / Germany v1.1 -->
 
     <!-- SortableJS für einfaches Drag & Drop laden -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/Sortable/1.15.7/Sortable.min.js"></script>
@@ -159,14 +159,15 @@
         /* Dynamisch erzeugte Bausteine auf dem Canvas */
         .canvas-item {
             background: var(--bg-sidebar);
-            /* Nutzt die Hintergrundfarbe der Boxen */
+            /* KORREKTUR: Nutzt jetzt die dynamische Hintergrundfarbe */
             color: var(--text-color);
+            /* KORREKTUR: Nutzt die dynamische Textfarbe */
             border: 1px solid var(--border-color);
             border-radius: 6px;
             padding: 15px;
             margin-bottom: 15px;
             position: relative;
-            /* Ein dezent angepasster Schatten, der im Dark Mode nicht strahlt */
+            /* Ein dezent angepasster Schatten, der im Dark Mode nicht unangenehm strahlt */
             box-shadow: 0 2px 4px rgba(0, 0, 0, 0.15);
             display: block;
         }
@@ -194,25 +195,37 @@
             font-size: 12px;
         }
 
+        /* Labels (Beschriftungen über den Feldern) im Dark Mode lesbar machen */
         .canvas-item label {
             display: block;
             font-size: 12px;
             font-weight: bold;
-            color: var(--text-color);
-            /* Textfarbe wechselt nun mit */
+            color: var(--text-color) !important;
+            /* Wechselt nun sauber mit */
             opacity: 0.7;
-            /* Bleibt leicht gedimmt für den Label-Look */
+            /* Leicht gedimmt für den klassischen Label-Look */
             margin-bottom: 5px;
         }
 
+        /* Generelle Anpassung für alle Inputs, Textareas und Selects innerhalb der Canvas-Bausteine */
         .canvas-item input,
-        .canvas-item textarea {
+        .canvas-item textarea,
+        .canvas-item select {
+            background-color: var(--bg-input) !important;
+            color: var(--text-color) !important;
+            border: 1px solid var(--border-color) !important;
             width: 100%;
             padding: 8px;
-            border: 1px solid var(--border-color);
             border-radius: 4px;
             box-sizing: border-box;
             font-family: inherit;
+            transition: background-color 0.2s, color 0.2s, border-color 0.2s;
+        }
+
+        /* Kleiner Bonus: Ändert auch die Farbe des blinkenden Text-Cursors im Dark Mode */
+        .canvas-item input,
+        .canvas-item textarea {
+            caret-color: var(--text-color);
         }
 
         /* HTML-Ausgabe-Bereich */
@@ -256,6 +269,44 @@
 
         #snippet-list .template-item:hover {
             background: var(--template-item-hover-color);
+        }
+
+        /* Globale, dynamische Scrollbalken für das gesamte Editor-Interface */
+        ::-webkit-scrollbar {
+            width: 8px;
+            /* Breite des vertikalen Scrollbalkens */
+            height: 8px;
+            /* Höhe des horizontalen Scrollbalkens */
+        }
+
+        /* Der Hintergrund der Scrollleiste (Schiene) */
+        ::-webkit-scrollbar-track {
+            background: transparent;
+            /* Bleibt unsichtbar, damit es sich dem Hintergrund anpasst */
+        }
+
+        /* Der bewegliche Balken (Thumb) - Wechselt nun vollautomatisch das Design! */
+        ::-webkit-scrollbar-thumb {
+            background-color: var(--border-color);
+            /* Nutzt deine dynamische Rahmenfarbe */
+            border-radius: 4px;
+            border: 2px solid transparent;
+            /* Erzeugt einen sauberen Abstand zum Rand */
+            background-clip: padding-box;
+        }
+
+        /* Hover-Effekt: Wird beim Drüberfahren mit der Maus leicht kräftiger */
+        ::-webkit-scrollbar-thumb:hover {
+            filter: brightness(1.2);
+            /* Macht den Balken im Dark Mode heller, im Light Mode dunkler */
+            background-color: #888888;
+            /* Universeller Fallback-Wert für perfekten Kontrast */
+        }
+
+        /* Firefox-Unterstützung (für moderne Versionen) */
+        * {
+            scrollbar-width: thin;
+            scrollbar-color: var(--border-color) transparent;
         }
     </style>
     <style>
@@ -954,8 +1005,6 @@
                     projectData.push({ type: 'small-notice', value: compContainer.querySelector('input').value });
                 }
 
-
-
             });
 
             // 2. Den Dateinamen aus dem Eingabefeld auslesen
@@ -970,8 +1019,14 @@
             // Sicherstellen, dass die Endung .json angehängt wird
             const fullFilename = filename.endsWith('.json') ? filename : `${filename}.json`;
 
+            // Speicherdatei bauen
+            const saveData = {
+                filename: filename,
+                components: projectData
+            };
+
             // 3. Datei-Download triggern
-            const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(projectData, null, 4));
+            const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(saveData, null, 4));
             const downloadAnchorNode = document.createElement('a');
             downloadAnchorNode.setAttribute("href", dataStr);
             downloadAnchorNode.setAttribute("download", fullFilename); // Hier greift der dynamische Name!
@@ -992,7 +1047,12 @@
 
                     canvas.innerHTML = '';
 
-                    projectData.forEach(comp => {
+                    // 1. Dateinamen wiederherstellen
+                    if (projectData.filename && document.getElementById('project-filename')) {
+                        document.getElementById('project-filename').value = projectData.filename;
+                    }
+
+                    projectData.components.forEach(comp => {
                         const item = document.createElement('div');
                         item.className = 'canvas-item';
 
@@ -1357,7 +1417,6 @@
                 console.error("Fehler beim Laden des Autosaves", e);
             }
         }
-
 
         // 🔥 WICHTIG: Die Funktion automatisch ausführen, sobald die Seite lädt
         window.addEventListener('DOMContentLoaded', loadFromLocalStorage);
