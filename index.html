@@ -5,6 +5,9 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Produktbeschreibung HTML Builder</title>
+
+    <!-- NeoTec GmbH 01979 Lauchhammer / Germany v1.0 -->
+
     <!-- SortableJS für einfaches Drag & Drop laden -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/Sortable/1.15.7/Sortable.min.js"></script>
     <!-- Bootstrap 5 CSS für die Live-Vorschau laden -->
@@ -71,14 +74,21 @@
             opacity: 0.8;
         }
 
-        /* Seitenleiste mit Vorlagen */
+        /* Seitenleiste mit Vorlagen und Snippets - Jetzt voll scrollbar */
         .sidebar {
             background-color: var(--bg-sidebar);
             width: 280px;
+            height: 100vh;
+            /* Zwingt die Sidebar auf die exakte Bildschirmhöhe */
             border-right: 1px solid var(--border-color);
             padding: 20px;
             box-sizing: border-box;
+            overflow-y: auto;
+            /* Aktiviert den vertikalen Scrollbalken, sobald der Inhalt zu lang wird */
+            flex-shrink: 0;
+            /* Verhindert, dass die Sidebar vom Hauptbereich zusammengedrückt wird */
         }
+
 
         .sidebar h3 {
             margin-top: 0;
@@ -234,6 +244,19 @@
             color: var(--live-preview-text-color);
             /* Typisches Bootstrap-Dunkelgrau für Text */
         }
+
+        #snippet-list .template-item {
+            font-size: 13px;
+            padding: 8px 12px;
+            background: var(--bg-input);
+            border: 1px solid var(--border-color);
+            color: var(--text-color);
+            border-radius: 4px;
+        }
+
+        #snippet-list .template-item:hover {
+            background: var(--template-item-hover-color);
+        }
     </style>
     <style>
         :root {
@@ -294,11 +317,27 @@
         <div class="template-item" data-type="info-box" draggable="true">ℹ️ Info-Box (Alert)</div>
         <div class="template-item" data-type="footer-links" draggable="true">🐾 Fußzeile (Links)</div>
         <div class="template-item" data-type="custom-html" draggable="true">💻 Eigener HTML-Code</div>
+        <div class="template-item" data-type="centered-image" draggable="true">🖼️ Zentriertes Bild</div>
+        <div class="template-item" data-type="small-notice" draggable="true">⚖️ Hinweis (Kleintext)</div>
+
+
+        <hr style="border-color: var(--border-color); margin: 20px 0;">
+        <h3>📋 Code-Snippets</h3>
+
+        <!-- Snippet-Auswahl -->
+        <div id="snippet-list" style="display: flex; flex-direction: column; gap: 8px;">
+            <button class="template-item" style="text-align: left; cursor: pointer; border-style: solid;"
+                onclick="insertSnippet('alert')">🔔 Bootstrap Alert</button>
+            <button class="template-item" style="text-align: left; cursor: pointer; border-style: solid;"
+                onclick="insertSnippet('modelkey')">🔍 Modellaufschlüsselung (DRS255BC)</button>
+
+        </div>
+
     </div>
 
     <!-- HAUPTBEREICH: Aufgeteilt in Editor und Live-Vorschau -->
     <div class="main-content">
-        <h2>Produktbeschreibung Editor</h2>
+        <h2>Produktbeschreibung Editor (JTL Nova/NeoTec)</h2>
 
         <!-- Flexbox-Container für nebeneinanderliegende Ansicht -->
         <div style="display: flex; gap: 20px; flex: 1; min-height: 0;">
@@ -365,9 +404,6 @@
                 dein HTML-Code --&gt;</div>
         </div>
 
-
-
-
     </div>
 
     <script>
@@ -424,7 +460,7 @@
                 return `${handle}
             <div data-comp-type="info-box">
                 <label>INFO-BOX (Format: Titel: Text...)</label>
-                <textarea rows="3" oninput="updateHTMLOutput()">Rechtlicher Hinweis: Die Ausführung ist MID-zugelassen und für verbrauchsabhängige Abrechnungen gegenüber Dritten gesetzlich gültig. Die Eichgültigkeit der MID beträgt <strong>8 Jahre</strong> ab dem Eichjahr.</textarea>
+                <textarea rows="3" oninput="updateHTMLOutput()">Rechtlicher Hinweis: Die Ausführung ist MID-zugelassen und für verbrauchsabhängige Abrechnungen gegenüber Dritten gesetzlich gültig. Die Eichgültigkeit der MID beträgt 8 Jahre ab dem Eichjahr.</textarea>
             </div>${deleteBtn}`;
             }
 
@@ -459,6 +495,35 @@
                 <input type="text" value="Echtzeit-Messwerte auf dem LCD-Display" oninput="updateHTMLOutput()">
             </div>${deleteBtn}`;
             }
+
+            if (type === 'centered-image') {
+                return `${handle}
+            <div data-comp-type="centered-image" style="display: flex; flex-direction: column; gap: 8px;">
+                <label>ZENTRIERTES BILD</label>
+                <div>
+                    <span style="font-size: 11px; opacity: 0.7;">Bild-URL:</span>
+                    <input type="text" class="img-src" value="https://www.digitalzaehler.com/media/image/product/212/lg/sdm120db-mid-stromzaehler-1-phase-s0~2.webp" oninput="updateHTMLOutput()">
+                </div>
+                <div>
+                    <span style="font-size: 11px; opacity: 0.7;">Alternativtext (Alt-Tag):</span>
+                    <input type="text" class="img-alt" value="Eastron SDM120-DB MID Stromzähler 1-Phase" oninput="updateHTMLOutput()">
+                </div>
+                <div>
+                    <span style="font-size: 11px; opacity: 0.7;">Maximale Breite (z.B. 400px):</span>
+                    <input type="text" class="img-width" value="400px" oninput="updateHTMLOutput()">
+                </div>
+            </div>${deleteBtn}`;
+            }
+
+            if (type === 'small-notice') {
+                return `${handle}
+            <div data-comp-type="small-notice">
+                <label>HINWEIS / KLEINTEXT</label>
+                <input type="text" value="Hinweis zu Produktbildern: Die Abbildungen sind beispielhaft und können minimal vom gelieferten Produkt abweichen." oninput="updateHTMLOutput()">
+            </div>${deleteBtn}`;
+            }
+
+
 
             return '';
         }
@@ -669,7 +734,7 @@
 
                     // 3. SPEZIAL-FIX FÜR DIE LIVE-VORSCHAU: 
                     // Wir erlauben der Live-Vorschau explizit, die entwerteten <strong> Tags wieder als echtes HTML zu parsen
-                    setTimeout(() => {
+                    /*setTimeout(() => {
                         const livePreview = document.getElementById('live-preview');
                         if (livePreview) {
                             // Repariert die codierten spitzen Klammern exakt für die Darstellung im Vorschaufenster
@@ -677,7 +742,7 @@
                                 .replace(/&lt;strong&gt;/g, '<strong>')
                                 .replace(/&lt;\/strong&gt;/g, '</strong>');
                         }
-                    }, 0);
+                    }, 0);*/
                 }
 
                 else if (type === 'footer-links') {
@@ -686,9 +751,9 @@
                     generatedHTML += `<!-- FOOTER LINKS -->\n`;
                     generatedHTML += `    <div class="additional-links text-center py-3 bg-white rounded d-flex flex-wrap justify-content-center align-items-center" style="gap: 20px;">\n`;
                     // 1. Dynamischer Download-Button mit der eingetragenen URL
-                    generatedHTML += `        <a class="btn btn-sm btn-primary" href="${escapeHTML(manualUrl)}">💾 Downloads &ouml;ffnen </a>\n`;
+                    generatedHTML += `        <a class="btn btn-sm btn-primary" href="${escapeHTML(manualUrl)}">💾 Bedienungsanleitung </a>\n`;
                     // 2. Fixer Lexikon-Button
-                    generatedHTML += `        <a class="btn btn-sm btn-outline-secondary" href="https://www.digitalzaehler.com/Lexikon" style="color: var(--dark);"> 💡 Fachbegriffe im Lexikon erkl&auml;ren </a>\n`;
+                    generatedHTML += `        <a class="btn btn-sm btn-outline-secondary" target="_blank" href="https://www.digitalzaehler.com/Lexikon" style="color: var(--dark);"> 💡 Fachbegriffe im Lexikon erkl&auml;ren </a>\n`;
                     generatedHTML += `    </div>\n`;
                 }
                 else if (type === 'custom-html') {
@@ -733,10 +798,28 @@
                     generatedHTML += `<h5 class="font-weight-bold mt-4 mb-2">${escapeHTML(value)}</h5>\n`;
                 }
 
+                else if (type === 'centered-image') {
+                    const src = item.querySelector('.img-src').value;
+                    const alt = item.querySelector('.img-alt').value;
+                    const maxWidth = item.querySelector('.img-width').value || '400px';
+
+                    // Erzeugt exakt deinen gewünschten zentrierten Bild-Code
+                    generatedHTML += `<div class="d-flex justify-content-center my-4">\n`;
+                    generatedHTML += `    <img src="${escapeHTML(src)}" alt="${escapeHTML(alt)}" class="img-fluid" style="max-width: ${escapeHTML(maxWidth)};">\n`;
+                    generatedHTML += `</div>\n`;
+                }
+
+                else if (type === 'small-notice') {
+                    const value = item.querySelector('input').value;
+                    // Erzeugt einen dezenten, kleinen Hinweistext
+                    generatedHTML += `<p class="small text-muted mt-2 mb-3">${escapeHTML(value)}</p>\n`;
+                }
+
+
 
             });
 
-            generatedHTML += `<div>`;
+            generatedHTML += `</div>`;
             htmlOutput.textContent = generatedHTML || '';
 
             // Schreibt den Code als echtes, gerendertes HTML in den Bootstrap-Container
@@ -745,6 +828,7 @@
                 livePreview.innerHTML = generatedHTML || '<p class="text-muted">Noch keine Inhalte vorhanden...</p>';
             }
 
+            saveToLocalStorage();
         }
 
         // Hilfsfunktion gegen XSS, HTML-Fehler und zur Umlaut-Konvertierung
@@ -858,6 +942,19 @@
                 else if (type === 'section-heading') {
                     projectData.push({ type: 'section-heading', value: compContainer.querySelector('input').value });
                 }
+                else if (type === 'centered-image') {
+                    projectData.push({
+                        type: 'centered-image',
+                        src: compContainer.querySelector('.img-src').value,
+                        alt: compContainer.querySelector('.img-alt').value,
+                        maxWidth: compContainer.querySelector('.img-width').value
+                    });
+                }
+                else if (type === 'small-notice') {
+                    projectData.push({ type: 'small-notice', value: compContainer.querySelector('input').value });
+                }
+
+
 
             });
 
@@ -935,6 +1032,15 @@
                         else if (comp.type === 'section-heading') {
                             item.querySelector('input').value = comp.value;
                         }
+                        else if (comp.type === 'centered-image') {
+                            item.querySelector('.img-src').value = comp.src || '';
+                            item.querySelector('.img-alt').value = comp.alt || '';
+                            item.querySelector('.img-width').value = comp.maxWidth || '400px';
+                        }
+                        else if (comp.type === 'small-notice') {
+                            item.querySelector('input').value = comp.value;
+                        }
+
 
                     });
 
@@ -1006,5 +1112,254 @@
             }
         });
 
+        // 1. Hier hältst du deine vordefinierten Code-Snippets vor
+        const CODE_SNIPPETS = {
+            alert: `<div class="alert alert-warning alert-dismissible fade show" role="alert">
+                        <strong>Achtung!</strong> Dieses Angebot gilt nur für kurze Zeit.
+                    </div>`,
+
+            // 🔥 DEIN NEUES SNIPPET (Jetzt sicher maskiert für den Editor-Code)
+            modelkey: `<!-- TYPENBEZEICHNUNG ALS DEZENTE BOX -->
+            <div class="modell-name-description-list card bg-light border-0 p-3 mb-5">
+                <div class="row align-items-center">
+                    <!-- Linke Spalte: Text -->
+                    <div class="col-12 col-md-8 col-lg-9">
+                        <h5 class="fw-bold mb-3" style="color: #212529 !important;">Modellaufschlüsselung (DRS255BC)</h5>
+                        <ul class="list-unstyled mb-0">
+                            <li class="mb-2"><strong>DR:</strong> DIN-Rail (Die englische Bezeichnung für Hutschienenmontage)</li>
+                            <li class="mb-2"><strong>S:</strong> Single-Phase (Einphasen-Wechselstromzähler)</li>
+                            <li class="mb-2"><strong>2:</strong> Teilungseinheiten (TE)</li>
+                            <li class="mb-2"><strong>55:</strong> Stromstärkespezifikation (Grenzstrom 50A + Nennstrom 5A kombiniert)</li>
+                            <li class="mb-2"><strong>B:</strong> Blue (Steht für das blau hinterleuchtete LCD-Display)</li>
+                            <li class="mb-2"><strong>C:</strong> Cycle / Counter (Steht für die integrierte, rückstellbare Tageszählfunktion / Teilverbrauchszähler)</li>
+                        </ul>
+                    </div>
+
+                    <!-- Rechte Spalte: Bild mit Lupe -->
+                    <div class="col-12 col-md-4 col-lg-3 text-center mt-3 mt-md-0 overflow-hidden" style="position: relative;">
+                        <style>
+                            .advanced-zoom-container { overflow: hidden; display: inline-block; cursor: zoom-in; }
+                            .advanced-zoom-img { max-height: 220px; width: auto; mix-blend-mode: multiply; transition: transform 0.1s ease-out; transform-origin: center center; }
+                            .advanced-zoom-container:hover .advanced-zoom-img { transform: scale(2.8); }
+                        </style>
+                        <div class="advanced-zoom-container jtl-hover-zoom">
+                            <img src="https://www.digitalzaehler.com/media/image/product/266/lg/stromzaehler_51.webp" alt="B+G E-Tech DRS255BC" class="img-fluid advanced-zoom-img">
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Multi-Element-sicheres JavaScript via Klassen -->
+            <script>
+                document.querySelectorAll('.jtl-hover-zoom').forEach(function (container) {
+                    const img = container.querySelector('.advanced-zoom-img');
+                    container.addEventListener('mousemove', function (e) {
+                        const rect = container.getBoundingClientRect();
+                        const xPercent = ((e.clientX - rect.left) / rect.width) * 100;
+                        const yPercent = ((e.clientY - rect.top) / rect.height) * 100;
+                        img.style.transformOrigin = xPercent + '% ' + yPercent + '%';
+                    });
+                    container.addEventListener('mouseleave', function () {
+                        img.style.transformOrigin = 'center center';
+                    });
+                });
+            <\/script>` // <-- 🔥 WICHTIG: Das \/ verhindert, dass der Editor-Script-Tag bricht!
+        };
+
+
+        // Variable, um sich die zuletzt aktive Custom-HTML-Textarea zu merken
+        let lastActiveTextarea = null;
+
+        // Überwacht weltweit, welche Textarea zuletzt angeklickt wurde
+        document.addEventListener('focusin', (e) => {
+            if (e.target.tagName === 'TEXTAREA' && e.target.closest('[data-comp-type="custom-html"]')) {
+                lastActiveTextarea = e.target;
+            }
+        });
+
+        // Fügt das Snippet an der Cursorposition ein
+        function insertSnippet(key) {
+            const code = CODE_SNIPPETS[key];
+            if (!code) return;
+
+            // Wenn keine Textarea aktiv ist, nehmen wir die allererste Custom-HTML-Box auf dem Canvas
+            if (!lastActiveTextarea || !document.body.contains(lastActiveTextarea)) {
+                const firstCustomHtml = document.querySelector('[data-comp-type="custom-html"] textarea');
+                if (firstCustomHtml) {
+                    lastActiveTextarea = firstCustomHtml;
+                } else {
+                    alert("Bitte ziehe zuerst einen 'Custom HTML'-Baustein auf das Canvas und klicke in das Textfeld.");
+                    return;
+                }
+            }
+
+            const txt = lastActiveTextarea;
+            const startPos = txt.selectionStart;
+            const endPos = txt.selectionEnd;
+
+            // Code an der genauen Cursor-Position einschleusen
+            txt.value = txt.value.substring(0, startPos) + code + txt.value.substring(endPos, txt.value.length);
+
+            // Cursor hinter den eingefügten Code setzen
+            txt.selectionStart = txt.selectionEnd = startPos + code.length;
+
+            // Textfeld wieder fokussieren und Vorschau aktualisieren
+            txt.focus();
+            if (typeof updateHTMLOutput === 'function') {
+                updateHTMLOutput();
+            }
+        }
+
+        function saveToLocalStorage() {
+            const items = document.querySelectorAll('#canvas .canvas-item');
+            const projectData = [];
+
+            items.forEach(item => {
+                // KORREKTUR: Wir suchen zuerst den inneren Container, der das Attribut hat
+                const compContainer = item.querySelector('[data-comp-type]');
+                if (!compContainer) return; // Sicherheitscheck
+
+                // Jetzt holen wir uns den Typen direkt aus dem funktionierenden JTL-Container-Attribut
+                const type = compContainer.getAttribute('data-comp-type');
+
+                if (type === 'heading') {
+                    projectData.push({ type: 'heading', value: compContainer.querySelector('input').value });
+                }
+                else if (type === 'text') {
+                    projectData.push({ type: 'text', value: compContainer.querySelector('textarea').value });
+                }
+                else if (type === 'list') {
+                    projectData.push({ type: 'list', value: compContainer.querySelector('textarea').value });
+                }
+                else if (type === 'badges') {
+                    projectData.push({ type: 'badges', value: compContainer.querySelector('input').value });
+                }
+                else if (type === 'display-list') {
+                    projectData.push({ type: 'display-list', value: compContainer.querySelector('textarea').value });
+                }
+                else if (type === 'info-box') {
+                    projectData.push({ type: 'info-box', value: compContainer.querySelector('textarea').value });
+                }
+                else if (type === 'footer-links') {
+                    projectData.push({ type: 'footer-links', value: compContainer.querySelector('input').value });
+                }
+                else if (type === 'custom-html') {
+                    projectData.push({ type: 'custom-html', value: compContainer.querySelector('textarea').value });
+                }
+                else if (type === 'subheading') {
+                    projectData.push({ type: 'subheading', value: compContainer.querySelector('input').value });
+                }
+                else if (type === 'section-heading') {
+                    projectData.push({ type: 'section-heading', value: compContainer.querySelector('input').value });
+                }
+                else if (type === 'centered-image') {
+                    projectData.push({
+                        type: 'centered-image',
+                        src: compContainer.querySelector('.img-src').value,
+                        alt: compContainer.querySelector('.img-alt').value,
+                        maxWidth: compContainer.querySelector('.img-width').value
+                    });
+                }
+                else if (type === 'small-notice') {
+                    projectData.push({ type: 'small-notice', value: compContainer.querySelector('input').value });
+                }
+            });
+
+            // Den aktuellen Dateinamen merken
+            const filename = document.getElementById('project-filename')?.value || '';
+
+            const autoSaveData = {
+                filename: filename,
+                components: projectData
+            };
+
+            // Im Browser-Speicher ablegen
+            localStorage.setItem('editor_autosave', JSON.stringify(autoSaveData));
+        }
+
+        function loadFromLocalStorage() {
+            const savedData = localStorage.getItem('editor_autosave');
+            if (!savedData) return; // Nichts da? Dann normal starten.
+
+            try {
+                const autoSaveData = JSON.parse(savedData);
+
+                // 1. Dateinamen wiederherstellen
+                if (autoSaveData.filename && document.getElementById('project-filename')) {
+                    document.getElementById('project-filename').value = autoSaveData.filename;
+                }
+
+                // 2. Komponenten wieder aufs Canvas bringen
+                if (autoSaveData.components && autoSaveData.components.length > 0) {
+                    const canvas = document.getElementById('canvas');
+                    canvas.innerHTML = ''; // Canvas leeren
+
+                    autoSaveData.components.forEach(comp => {
+                        const item = document.createElement('div');
+                        item.className = 'canvas-item';
+
+                        // WICHTIG: Setzt die Attribute, damit SortableJS und updateHTMLOutput() 
+                        // den Typ und Container beim späteren Umsortieren/Speichern wiederfinden!
+                        item.setAttribute('data-type', comp.type);
+
+                        // Vorlagen-HTML generieren und ins Canvas hängen
+                        item.innerHTML = createInputTemplate(comp.type);
+                        canvas.appendChild(item);
+
+                        // Werte eintragen:
+                        if (comp.type === 'heading') {
+                            item.querySelector('input').value = comp.value;
+                        }
+                        else if (comp.type === 'text') {
+                            item.querySelector('textarea').value = comp.value;
+                        }
+                        else if (comp.type === 'list') {
+                            item.querySelector('textarea').value = comp.value;
+                        }
+                        else if (comp.type === 'badges') {
+                            item.querySelector('input').value = comp.value;
+                        }
+                        else if (comp.type === 'display-list') {
+                            item.querySelector('textarea').value = comp.value;
+                        }
+                        else if (comp.type === 'info-box') {
+                            item.querySelector('textarea').value = comp.value;
+                        }
+                        else if (comp.type === 'footer-links') {
+                            item.querySelector('input').value = comp.value;
+                        }
+                        else if (comp.type === 'custom-html') {
+                            item.querySelector('textarea').value = comp.value;
+                        }
+                        else if (comp.type === 'subheading') {
+                            item.querySelector('input').value = comp.value;
+                        }
+                        else if (comp.type === 'section-heading') {
+                            item.querySelector('input').value = comp.value;
+                        }
+                        else if (comp.type === 'centered-image') {
+                            item.querySelector('.img-src').value = comp.src || '';
+                            item.querySelector('.img-alt').value = comp.alt || '';
+                            item.querySelector('.img-width').value = comp.maxWidth || '400px';
+                        }
+                        else if (comp.type === 'small-notice') {
+                            item.querySelector('input').value = comp.value;
+                        }
+                    });
+
+                    // Einmalig die Vorschau und das HTML neu berechnen
+                    updateHTMLOutput();
+
+                    // KORREKTUR: Die Zeile "input.value = '';" wurde hier gelöscht, 
+                    // da es im Local-Storage kein Datei-Input-Element abzuräumen gilt.
+                }
+            } catch (e) {
+                console.error("Fehler beim Laden des Autosaves", e);
+            }
+        }
+
+
+        // 🔥 WICHTIG: Die Funktion automatisch ausführen, sobald die Seite lädt
+        window.addEventListener('DOMContentLoaded', loadFromLocalStorage);
 
     </script>
