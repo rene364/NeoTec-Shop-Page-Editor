@@ -12,6 +12,8 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/Sortable/1.15.7/Sortable.min.js"></script>
     <!-- Bootstrap 5 CSS für die Live-Vorschau laden -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com//ajax/libs/bootstrap/5.3.3/css/bootstrap.min.css">
+    <!-- CDN für js-beautify (HTML-Formatierer) -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/js-beautify/2.0.3/beautify-html.js"></script>
 
     <style>
         /* Standard: Light Mode Variablen */
@@ -111,29 +113,30 @@
             background: var(--template-item-hover-color);
         }
 
-        /* Hauptbereich: Nimmt die volle Resthöhe ein und scrollt nicht mehr als Ganzes */
+        /* Der Hauptbereich füllt die volle Bildschirmhöhe aus */
         .main-content {
             flex: 1;
             display: flex;
             flex-direction: column;
             padding: 20px;
             height: 100vh;
-            /* Zwingt den Editor auf die genaue Bildschirmhöhe */
             box-sizing: border-box;
             overflow: hidden;
-            /* Verhindert das Herausschieben des Quellcodes */
+            /* Verhindert ein vertikales Scrollen des gesamten Fensters */
         }
 
-        /* Die Arbeitsfläche (Canvas): Erhält eine feste maximale Höhe und scrollt intern */
+        /* Die Arbeitsfläche (Canvas): Nutzt nun die volle dynamische Höhe */
         .canvas {
+            flex: 1;
+            /* Teilt sich den Platz im Workspace */
             background: var(--bg-canvas);
             border: 1px solid var(--border-color);
             border-radius: 8px;
             padding: 20px;
-            height: 550px;
-            /* Feste Höhe für die Arbeitsfläche */
+            height: 100%;
+            /* Füllt die volle Höhe des elastischen Workspaces aus */
             overflow-y: auto;
-            /* Aktiviert den internen Scrollbalken bei vielen Elementen */
+            /* Interner Scrollbalken wird erst aktiv, wenn zu viele Bausteine drin liegen */
             box-shadow: 0 4px 6px rgba(0, 0, 0, 0.02);
         }
 
@@ -228,10 +231,10 @@
             caret-color: var(--text-color);
         }
 
-        /* HTML-Ausgabe-Bereich */
+        /* Das Code-Fenster unten bleibt fixiert und schiebt nichts weg */
         .output-area {
-            margin-top: 20px;
-            height: 200px;
+            height: 180px;
+            /* Eine angenehme feste Höhe für den Code */
             background: #272822;
             color: #f8f8f2;
             padding: 15px;
@@ -252,10 +255,20 @@
             font-weight: bold;
         }
 
-        /* Stellt sicher, dass die Live-Vorschau immer ein helles Shop-Design simuliert */
-        #live-preview {
+        /* Das Live-Vorschaufenster: Zwillingsbruder des Canvas */
+        #live-preview,
+        .live-preview {
+            flex: 1;
+            /* Gleiche Breite und Dehnung wie das Canvas */
+            background: #ffffff;
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 20px;
+            height: 100%;
+            /* Zwingt die Vorschau auf exakt dieselbe Höhe wie das Canvas */
+            overflow-y: auto;
+            /* Internes Scrollen für lange Beschreibungen */
             color: var(--live-preview-text-color);
-            /* Typisches Bootstrap-Dunkelgrau für Text */
         }
 
         #snippet-list .template-item {
@@ -307,6 +320,19 @@
         * {
             scrollbar-width: thin;
             scrollbar-color: var(--border-color) transparent;
+        }
+
+        /* 📊 NEU: Ein flexibler Zwischen-Container, der Canvas und Vorschau nebeneinander hält */
+        /* Falls du diesen Container in deinem HTML noch nicht hast, siehe Schritt 2! */
+        .editor-workspace {
+            flex: 1;
+            /* Beansprucht automatisch den maximalen Platz nach unten */
+            display: flex;
+            gap: 20px;
+            min-height: 0;
+            /* Ein extrem wichtiger CSS-Trick für Flexbox-Scrolling! */
+            margin-bottom: 15px;
+            /* Abstand zum Code-Ausgabefenster unten */
         }
     </style>
     <style>
@@ -371,7 +397,6 @@
         <div class="template-item" data-type="centered-image" draggable="true">🖼️ Zentriertes Bild</div>
         <div class="template-item" data-type="small-notice" draggable="true">⚖️ Hinweis (Kleintext)</div>
 
-
         <hr style="border-color: var(--border-color); margin: 20px 0;">
         <h3>📋 Code-Snippets</h3>
 
@@ -381,33 +406,20 @@
                 onclick="insertSnippet('alert')">🔔 Bootstrap Alert</button>
             <button class="template-item" style="text-align: left; cursor: pointer; border-style: solid;"
                 onclick="insertSnippet('modelkey')">🔍 Modellaufschlüsselung (DRS255BC)</button>
-
         </div>
-
     </div>
 
     <!-- HAUPTBEREICH: Aufgeteilt in Editor und Live-Vorschau -->
     <div class="main-content">
         <h2>Produktbeschreibung Editor (JTL Nova/NeoTec)</h2>
 
-        <!-- Flexbox-Container für nebeneinanderliegende Ansicht -->
-        <div style="display: flex; gap: 20px; flex: 1; min-height: 0;">
+        <!-- 🔥 Der Workspace für die beiden elastischen Fenster -->
+        <div class="editor-workspace">
+            <!-- Linkes Fenster -->
+            <div class="canvas" id="canvas"></div>
 
-            <!-- Linke Seite: Die Arbeitsfläche (Canvas) -->
-            <div style="flex: 1; display: flex; flex-direction: column;">
-                <h4>Arbeitsfläche</h4>
-                <div class="canvas" id="canvas"></div>
-            </div>
-
-            <!-- Rechte Seite: Echte Bootstrap Live-Vorschau -->
-            <div style="flex: 1; display: flex; flex-direction: column;">
-                <h4>Live-Vorschau (Bootstrap CSS aktiv)</h4>
-                <!-- WICHTIG: height: 350px hält es synchron zum Canvas -->
-                <div id="live-preview" class="p-3 bg-white border rounded" style="height: 550px; overflow-y: auto;">
-                    <p class="text-muted">Noch keine Inhalte vorhanden...</p>
-                </div>
-            </div>
-
+            <!-- Rechtes Fenster -->
+            <div id="live-preview"></div>
         </div>
 
         <!-- Code-Ausgabe-Bereich: Jetzt mit Kopier-Button -->
@@ -417,6 +429,21 @@
 
                 <!-- Eine Gruppe für die Buttons, die sich automatisch nach rechts schiebt -->
                 <div style="margin-left: auto; display: flex; align-items: center; gap: 8px;">
+
+                    <!-- In deiner Button-Gruppe unten ergänzen: -->
+                    <button id="btn-clear" class="btn-export"
+                        style="background: #dc3545; padding: 5px 15px; font-size: 14px;"
+                        onclick="clearCanvasWithConfirm()">
+                        🗑️ Canvas leeren
+                    </button>
+
+                    <!-- NEU: Code formatieren Button -->
+                    <button id="btn-format" class="btn-export"
+                        style="background: #17a2b8; padding: 5px 15px; font-size: 14px;"
+                        onclick="formatGeneratedHTML()">
+                        ✨ Code formatieren
+                    </button>
+
                     <!-- Der Kopier-Button -->
                     <button id="btn-copy" class="btn-export"
                         style="background: #6f42c1; padding: 5px 15px; font-size: 14px;"
@@ -427,7 +454,7 @@
                     <!-- NEU: Eingabefeld für den Dateinamen -->
                     <div
                         style="display: flex; align-items: center; background: #343a40; padding: 2px 8px; border-radius: 4px; border: 1px solid #6c757d;">
-                        <input type="text" id="project-filename" value="WS100-1943"
+                        <input type="text" id="project-filename" value="Dateiname"
                             style="background: transparent; color: #fff; border: none; font-size: 14px; width: 180px; outline: none;"
                             placeholder="Dateiname">
                         <span style="color: #6c757d; font-size: 14px; user-select: none;">.json</span>
@@ -449,12 +476,10 @@
                         🌙 Dark Mode
                     </button>
                 </div>
-
             </div>
             <div class="output-area" id="html-output" style="height: 150px; margin-top: 5px;">&lt;!-- Hier erscheint
                 dein HTML-Code --&gt;</div>
         </div>
-
     </div>
 
     <script>
@@ -463,7 +488,7 @@
         // HTML-Vorlagen für die Eingabefelder im Canvas erzeugen
         function createInputTemplate(type) {
             const handle = `<div class="handle">⋮⋮</div>`;
-            const deleteBtn = `<button class="delete-btn" onclick="this.parentElement.remove(); updateHTMLOutput();">Löschen</button>`;
+            const deleteBtn = `<button class="delete-btn" style="background-color: #dc3545; color: #ffffff; border: none; border-radius: 50%; width: 24px; height: 24px; padding: 0; line-height: 22px; font-size: 13px; cursor: pointer; font-weight: bold; box-shadow: 0 2px 4px rgba(0,0,0,0.2);" onclick="this.parentElement.remove(); updateHTMLOutput();">🗙</button>`;
 
             if (type === 'heading') {
                 return `${handle}
@@ -863,10 +888,9 @@
                 else if (type === 'small-notice') {
                     const value = item.querySelector('input').value;
                     // Erzeugt einen dezenten, kleinen Hinweistext
-                    generatedHTML += `<p class="small text-muted mt-2 mb-3">${escapeHTML(value)}</p>\n`;
+                    generatedHTML += `<!-- HINWEIS (KLEINTEXT) -->
+                    <p class="small text-muted mt-2 mb-3">${escapeHTML(value)}</p>\n`;
                 }
-
-
 
             });
 
@@ -905,7 +929,6 @@
             //return escaped.replace(/[äöüÄÖÜß]/g, match => umlautMap[match]);
             return escaped;
         }
-
 
         // 2. Drag & Drop Initialisierung nach dem Laden der Seite
         document.addEventListener("DOMContentLoaded", function () {
@@ -1009,11 +1032,11 @@
 
             // 2. Den Dateinamen aus dem Eingabefeld auslesen
             const filenameInput = document.getElementById('project-filename');
-            let filename = filenameInput ? filenameInput.value.trim() : 'produktbeschreibung';
+            let filename = filenameInput ? filenameInput.value.trim() : 'Dateiname';
 
             // Fallback, falls das Feld komplett leer gelöscht wurde
             if (!filename) {
-                filename = 'produktbeschreibung';
+                filename = 'Dateiname';
             }
 
             // Sicherstellen, dass die Endung .json angehängt wird
@@ -1415,6 +1438,77 @@
                 }
             } catch (e) {
                 console.error("Fehler beim Laden des Autosaves", e);
+            }
+        }
+
+        function formatGeneratedHTML() {
+            const htmlOutput = document.getElementById('html-output');
+            const formatBtn = document.getElementById('btn-format');
+
+            if (!htmlOutput || !htmlOutput.textContent) return;
+
+            // Aktuellen Text aus dem Ausgabefenster holen
+            const rawHTML = htmlOutput.textContent;
+
+            // Optionen für js-beautify definieren
+            const options = {
+                indent_size: 4,                  // 4 Leerzeichen Einrückung
+                indent_char: " ",
+                max_preserve_newlines: 1,        // Verhindert riesige Lücken im Code
+                preserve_newlines: true,
+                keep_array_indentation: false,
+                break_chained_methods: false,
+                indent_scripts: "normal",        // Skripte (wie bei der Modellkachel) sauber mit-einrücken
+                brace_style: "collapse",
+                space_before_conditional: true,
+                unescape_strings: false,
+                jslint_happy: false,
+                end_with_newline: true,
+                wrap_line_length: 0,
+                wrap_attributes: "auto"
+            };
+
+            // Die geladene Bibliotheksfunktion "html_beautify" ausführen
+            if (typeof html_beautify === 'function') {
+                const beautifiedHTML = html_beautify(rawHTML, options);
+
+                // Formatierten Code zurückschreiben
+                htmlOutput.textContent = beautifiedHTML;
+
+                // Visuelles Feedback am Button triggern
+                const originalText = formatBtn.innerHTML;
+                formatBtn.innerHTML = "⚡ Aufgeräumt!";
+                setTimeout(() => {
+                    formatBtn.innerHTML = originalText;
+                }, 1500);
+            } else {
+                console.error("Formatierungs-Bibliothek konnte nicht geladen werden.");
+            }
+        }
+
+        function clearCanvasWithConfirm() {
+            // Sicherheitsabfrage, um versehentliches Löschen zu verhindern
+            if (confirm("Möchtest du das gesamte Canvas wirklich leeren? Alle ungesicherten Bausteine gehen verloren.")) {
+
+                // 1. Das Canvas im DOM komplett leeren
+                const canvas = document.getElementById('canvas');
+                if (canvas) {
+                    canvas.innerHTML = '';
+                }
+
+                // 2. Den Dateinamen auf den Standardwert zurücksetzen
+                const filenameInput = document.getElementById('project-filename');
+                if (filenameInput) {
+                    filenameInput.value = 'Dateiname';
+                }
+
+                // 3. Den LocalStorage-Eintrag für das Autosave löschen
+                localStorage.removeItem('editor_autosave');
+
+                // 4. Die HTML-Ausgabe und die Live-Vorschau neu berechnen (wird nun leer sein)
+                if (typeof updateHTMLOutput === 'function') {
+                    updateHTMLOutput();
+                }
             }
         }
 
