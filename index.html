@@ -408,6 +408,34 @@
         .advanced-zoom-container:hover .advanced-zoom-img {
             transform: scale(2.8);
         }*/
+
+        /* Styling für die technische Tabelle in der Live-Vorschau */
+        .tech-table {
+            width: 100%;
+            max-width: 100%;
+            margin-bottom: 1rem;
+            background-color: transparent;
+            border-collapse: collapse;
+        }
+
+        .tech-table th {
+            text-align: left;
+            padding: 12px;
+            border-bottom: 2px solid var(--border-color);
+            font-weight: bold;
+        }
+
+        .tech-table td {
+            padding: 10px 12px;
+            border-bottom: 1px solid var(--border-color);
+            vertical-align: top;
+        }
+
+        .tech-table td.property {
+            font-weight: 500;
+            width: 30%;
+            /* Gibt der linken Spalte eine schöne Standardbreite */
+        }
     </style>
     <style>
         :root {
@@ -484,7 +512,7 @@
         <div class="template-item" data-type="small-notice" draggable="true">⚖️ Hinweis (Kleintext)</div>
         <div class="template-item" data-type="keywords" draggable="true">🔑 Keywords-Box</div>
         <div class="template-item" data-type="model-breakdown" draggable="true">🔍 Modellaufschlüsselung (Kachel)</div>
-
+        <div class="template-item" data-type="tech-table" draggable="true">📊 Tech. Daten (Tabelle)</div>
 
         <hr style="border-color: var(--border-color); margin: 20px 0;">
         <!-- Kopfzeile mit "+" Button -->
@@ -503,7 +531,7 @@
 
     <!-- HAUPTBEREICH: Aufgeteilt in Editor und Live-Vorschau -->
     <div class="main-content">
-        <h2>Produktbeschreibung Editor (JTL Nova/NeoTec)</h2>
+        <h2>Produktbeschreibung Editor - JTL Nova / NeoTec / v1.2 (20261012)</h2>
 
         <!-- 🔥 Der Workspace für die beiden elastischen Fenster -->
         <div class="editor-workspace">
@@ -757,15 +785,28 @@
                 <div>
                     <span style="font-size: 11px; opacity: 0.7;">Aufschlüsselung (Format: Key - Text ; ):</span>
                     <textarea rows="5" class="mb-list" oninput="updateHTMLOutput()">DR - DIN-Rail (Hutschienenmontage);
-S - Single-Phase (Einphasen-Wechselstromzähler);
-2 - Teilungseinheiten (TE);
-55 - Stromstärkespezifikation (Grenzstrom 50A + Nennstrom 5A);
-B - Blue (Blau hinterleuchtetes LCD-Display);
-C - Cycle / Counter (Rückstellbares Tageszählwerk)</textarea>
+                    S - Single-Phase (Einphasen-Wechselstromzähler);
+                    2 - Teilungseinheiten (TE);
+                    55 - Stromstärkespezifikation (Grenzstrom 50A + Nennstrom 5A);
+                    B - Blue (Blau hinterleuchtetes LCD-Display);
+                    C - Cycle / Counter (Rückstellbares Tageszählwerk)</textarea>
                 </div>
             </div>${deleteBtn}`;
             }
 
+            if (type === 'tech-table') {
+                return `${handle}
+            <div data-comp-type="tech-table">
+                <label>TECHNISCHE DATEN (Format: Eigenschaft: Details ; )</label>
+                <textarea rows="6" oninput="updateHTMLOutput()">Typenbezeichnung: SPM210WiFi (B+G E-Tech);
+                Stromwerte: 0,15-5A Nennstrom / 80A Grenzstrom (Grenzstrom = dauerbelastbar!);
+                Zählertyp: Elektronischer Stromzähler nach EN 61036 für 1p2w Netze;
+                Display: digitales LCD (hinterleuchtet);
+                Anschluss: 230V/AC;
+                Eigenstromverbrauch: &le; 2W / 10VA;
+                Befestigung: DIN-Hutschiene (DIN EN50022) / 2TE 36mm;</textarea>
+            </div>${deleteBtn}`;
+            }
 
             return '';
         }
@@ -1179,6 +1220,53 @@ C - Cycle / Counter (Rückstellbares Tageszählwerk)</textarea>
 
                 }
 
+                else if (type === 'tech-table') {
+                    const value = item.querySelector('textarea').value;
+
+                    // Trennt die Zeilen am Semikolon
+                    const lines = value.split(';').map(l => l.trim()).filter(l => l.length > 0);
+
+                    generatedHTML += `    <!-- TAB: TECHNISCHE DATEN -->\n`;
+                    generatedHTML += `    <style type="text/css">\n`;
+                    generatedHTML += `        table.tech-table d { padding-right: 1.5em !important; }\n`;
+                    generatedHTML += `    </style>\n`;
+                    generatedHTML += `    <div class="tech-specs-container">\n`;
+                    generatedHTML += `        <div class="table-responsive">\n`;
+                    generatedHTML += `            <table class="tech-table">\n`;
+                    generatedHTML += `                <thead>\n`;
+                    generatedHTML += `                    <tr>\n`;
+                    generatedHTML += `                        <th>Eigenschaft</th>\n`;
+                    generatedHTML += `                        <th>Details</th>\n`;
+                    generatedHTML += `                    </tr>\n`;
+                    generatedHTML += `                </thead>\n`;
+                    generatedHTML += `                <tbody>\n`;
+
+                    lines.forEach(line => {
+                        // Findet den ersten Doppelpunkt für die Spaltentrennung
+                        const colonIndex = line.indexOf(':');
+
+                        if (colonIndex !== -1) {
+                            const eigenschaft = line.substring(0, colonIndex).trim();
+                            const details = line.substring(colonIndex + 1).trim();
+
+                            generatedHTML += `                    <tr>\n`;
+                            generatedHTML += `                        <td class="property">${escapeHTML(eigenschaft)}</td>\n`;
+                            generatedHTML += `                        <td>${escapeHTML(details)}</td>\n`;
+                            generatedHTML += `                    </tr>\n`;
+                        } else {
+                            // Fallback: Falls mal kein Doppelpunkt getippt wurde, nimm die ganze Zeile
+                            generatedHTML += `                    <tr>\n`;
+                            generatedHTML += `                        <td class="property" colspan="2">${escapeHTML(line)}</td>\n`;
+                            generatedHTML += `                    </tr>\n`;
+                        }
+                    });
+
+                    generatedHTML += `                </tbody>\n`;
+                    generatedHTML += `            </table>\n`;
+                    generatedHTML += `        </div>\n`;
+                    generatedHTML += `    </div>\n`;
+                }
+
             });
 
             generatedHTML += `</div>`;
@@ -1328,7 +1416,9 @@ C - Cycle / Counter (Rückstellbares Tageszählwerk)</textarea>
                     });
                 }
 
-
+                else if (type === 'tech-table') {
+                    projectData.push({ type: 'tech-table', value: compContainer.querySelector('textarea').value });
+                }
             });
 
             // 2. Den Dateinamen aus dem Eingabefeld auslesen
@@ -1435,6 +1525,9 @@ C - Cycle / Counter (Rückstellbares Tageszählwerk)</textarea>
                             item.querySelector('.mb-list').value = comp.listValue || '';
                         }
 
+                        else if (comp.type === 'tech-table') {
+                            item.querySelector('textarea').value = comp.value;
+                        }
 
                     });
 
@@ -1515,11 +1608,6 @@ C - Cycle / Counter (Rückstellbares Tageszählwerk)</textarea>
                 id: "default_alert",
                 name: "🔔 Bootstrap Alert",
                 code: `<div class="alert alert-warning alert-dismissible fade show" role="alert">\n    <strong>Achtung!</strong> Dieses Angebot gilt nur für kurze Zeit.\n</div>`
-            },
-            {
-                id: "default_badge",
-                name: "🏷️ Shop Badge (Neu)",
-                code: `<span class="badge badge-success font-weight-bold p-2">⚡ TOP SELLER</span>`
             }
         ];
 
@@ -1774,6 +1862,9 @@ C - Cycle / Counter (Rückstellbares Tageszählwerk)</textarea>
                     });
                 }
 
+                else if (type === 'tech-table') {
+                    projectData.push({ type: 'tech-table', value: compContainer.querySelector('textarea').value });
+                }
 
             });
 
@@ -1865,6 +1956,10 @@ C - Cycle / Counter (Rückstellbares Tageszählwerk)</textarea>
                             item.querySelector('.mb-title').value = comp.title || '';
                             item.querySelector('.mb-img').value = comp.imgSrc || '';
                             item.querySelector('.mb-list').value = comp.listValue || '';
+                        }
+
+                        else if (comp.type === 'tech-table') {
+                            item.querySelector('textarea').value = comp.value;
                         }
 
                     });
