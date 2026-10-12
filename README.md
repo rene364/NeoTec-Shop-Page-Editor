@@ -1,19 +1,26 @@
-HTML Product Page Editor for NeoTec GmbH based on JTL Shop Nova Template. (Bootstrap) 
+# HTML Product Page Editor für NeoTec GmbH
 
-LIVE PREVIEW: https://rene364.github.io/NeoTec-Shop-Page-Editor/
+HTML Product Page Editor für NeoTec GmbH basierend auf dem JTL Shop Nova Template (Bootstrap).
 
-Arbeitsbereich:
+## Live Preview
+https://rene364.github.io/NeoTec-Shop-Page-Editor/
+
+## Arbeitsbereich
+
+Die Oberfläche ist in drei Bereiche unterteilt:
+
 - Links: Bausteine, Code Snippets
-- Mitte: Arbeitsfläche Bausteine
-- Rechts: Live Preview (Bootstrap/JTL Nova Colors)
-- Unten: HTML Code Preview
+- Mitte: Arbeitsfläche für Bausteine
+- Rechts: Live Preview (Bootstrap / JTL Nova Farben)
+- Unten: HTML-Code Vorschau
 
-Bausteine:
+## Verfügbare Bausteine
+
 - Überschrift
 - Unterüberschrift (Lead)
 - Zwischenüberschrift (H5)
 - Textabsatz
-- Feature-List (Unordered Liste)
+- Feature-Liste (Unordered List)
 - Ordered-Liste
 - Feature-Badges
 - Display-Werte (Liste mit horizontalem Trenner)
@@ -22,16 +29,17 @@ Bausteine:
 - Eigener HTML-Code (Custom HTML)
 - Zentriertes Bild
 - Hinweis (Kleintext, zentriert)
-- Modelaufschlüsselung (Kachel)
-- Tech. Daten (2-spaltige Tabelle)
+- Modellaufschlüsselung (Kachel)
+- Technische Daten (2-spaltige Tabelle)
 
-Funktionen:
+## Funktionen
+
 - Code-Snippets Editor
-- Canvas leeren
-- Code formatieren (beautify)
+- Arbeitsfläche leeren
+- Code formatieren (Beautify)
 - Code kopieren
-- Undo/Redo
-- Filename
-- Speichern/Laden
-- automatischens Speichern/Wiederherstellen mit locale Storage
-- Dark/Light Theme
+- Undo / Redo
+- Dateiname
+- Speichern / Laden
+- Automatisches Speichern und Wiederherstellen mit Local Storage
+- Dark / Light Theme
