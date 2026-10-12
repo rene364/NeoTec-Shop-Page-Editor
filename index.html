@@ -503,6 +503,7 @@
         <div class="template-item" data-type="section-heading" draggable="true">🏷️ Zwischenüberschrift (H5)</div>
         <div class="template-item" data-type="text" draggable="true">📝 Textabsatz</div>
         <div class="template-item" data-type="list" draggable="true">📋 Feature-Liste</div>
+        <div class="template-item" data-type="ordered-list" draggable="true">📋 Ordered-Liste</div>
         <div class="template-item" data-type="badges" draggable="true">🏷️ Feature-Badges</div>
         <div class="template-item" data-type="display-list" draggable="true">📺 Display-Werte</div>
         <div class="template-item" data-type="info-box" draggable="true">ℹ️ Info-Box (Alert)</div>
@@ -673,6 +674,18 @@
                     <label>LISTENELEMENTE (semikolontrennt)</label>
                     <textarea rows="3" oninput="updateHTMLOutput()">Verbrauchsüberwachung bei Camping, Ferienappartements, Garagenkomplexen, Büros, Untervermietungen, Einliegerwohnungen, Baustromverteilern, Verkaufswagen oder Verteilern auf Wochenmärkten; Energy-Management-Systeme, Prüfmessungen von Verteilungen; Verbrauchsermittlung an Heizungen oder Pumpen; Steuerungs- und Verteilerbau, Regeltechnik; Für Prüfmessungen bei geringen Platzverhältnissen; Gebäudeautomation, Klimatechnik, BHKW; Schaltanlagenbau, Gewerbe und Installationshandwerk; Allgemeine Verbrauchsmessungen in/von Unterverteilungen für Abrechnung gegenüber Dritten geeignet; geeichte / MID-zugelassene Ausführung für Abrechnungszwecke geeignet! Zulassung beträgt 8 Jahre ab Eichjahr</textarea>
                     <!--<input type="text" rows="3" value="Verbrauchsüberwachung bei Camping, Ferienappartements, Garagenkomplexen, Büros, Untervermietungen, Einliegerwohnungen, Baustromverteilern, Verkaufswagen oder Verteilern auf Wochenmärkten; Energy-Management-Systeme, Prüfmessungen von Verteilungen; Verbrauchsermittlung an Heizungen oder Pumpen; Steuerungs- und Verteilerbau, Regeltechnik; Für Prüfmessungen bei geringen Platzverhältnissen; Gebäudeautomation, Klimatechnik, BHKW; Schaltanlagenbau, Gewerbe und Installationshandwerk; Allgemeine Verbrauchsmessungen in/von Unterverteilungen für Abrechnung gegenüber Dritten geeignet; geeichte / MID-zugelassene Ausführung für Abrechnungszwecke geeignet! Zulassung beträgt 8 Jahre ab Eichjahr " oninput="updateHTMLOutput()">-->
+                </div>${deleteBtn}`;
+            }
+            if (type === 'ordered-list') {
+                return `${handle}
+                <div data-comp-type="ordered-list">
+                    <label>LISTENELEMENTE (semikolontrennt)</label>
+                    <textarea rows="3" oninput="updateHTMLOutput()">Gesamt = Import (nur Bezugsleistung);
+Gesamt = Export (nur Abgabeleistung);
+Gesamt = Import + Export (Bezugsleistung + Abgabeleistung);
+Gesamt = Import - Export (Bezugsleistung - Abgabeleistung);
+Gesamt = saldierter Import - saldierter Export (entspricht 1.8.0 - 2.8.0)
+                    </textarea>
                 </div>${deleteBtn}`;
             }
             if (type === 'badges') {
@@ -860,6 +873,22 @@
                     generatedHTML += `</ul>\n`;
                     generatedHTML += `</div>\n`;
                 }
+                else if (type === 'ordered-list') {
+                    // KORREKTUR: Liest nun die neue textarea aus statt des inputs
+                    const value = item.querySelector('textarea').value;
+
+                    // Trennt den Text bei jedem Semikolon (;) statt beim Komma
+                    const listItems = value.split(';').map(i => i.trim()).filter(i => i.length > 0);
+
+                    generatedHTML += `<!-- ORDERED LISTE -->\n`;
+                    generatedHTML += `<div class="ordered-list mb-5">\n`;
+                    generatedHTML += `<ol>\n`;
+                    listItems.forEach(li => {
+                        generatedHTML += `  <li>${escapeHTML(li)}</li>\n`;
+                    });
+                    generatedHTML += `</ol>\n`;
+                    generatedHTML += `</div>\n`;
+                }
                 else if (type === 'badges') {
                     const value = item.querySelector('input').value;
                     const badgeItems = value.split(';').map(b => b.trim()).filter(b => b.length > 0);
@@ -927,7 +956,7 @@
                             url = 'https://www.digitalzaehler.com/Lexikon#faq-rs485-schnittstelle';
                             color = 'var(--indigo)';
                         }
-                        else if (key.includes('lcd')) {
+                        else if (key.includes('lcd') || key.includes('rollenzählwerk')) {
                             url = 'https://www.digitalzaehler.com/Lexikon#faq-lcd';
                             color = 'var(--light-blue)';
                             textClass = 'text-dark'; // dunklen Text
@@ -1370,6 +1399,9 @@
                     // KORREKTUR: querySelector auf 'textarea' geändert
                     projectData.push({ type: 'list', value: compContainer.querySelector('textarea').value });
                 }
+                else if (type === 'ordered-list') {
+                    projectData.push({ type: 'ordered-list', value: compContainer.querySelector('textarea').value });
+                }
                 else if (type === 'badges') {
                     projectData.push({ type: 'badges', value: compContainer.querySelector('input').value });
                 }
@@ -1482,6 +1514,10 @@
                             item.querySelector('textarea').value = comp.value;
                         }
                         else if (comp.type === 'list') {
+                            // KORREKTUR: Schreibt den geladenen Text in die 'textarea' zurück
+                            item.querySelector('textarea').value = comp.value;
+                        }
+                        else if (comp.type === 'ordered-list') {
                             // KORREKTUR: Schreibt den geladenen Text in die 'textarea' zurück
                             item.querySelector('textarea').value = comp.value;
                         }
@@ -1816,6 +1852,9 @@
                 else if (type === 'list') {
                     projectData.push({ type: 'list', value: compContainer.querySelector('textarea').value });
                 }
+                else if (type === 'ordered-list') {
+                    projectData.push({ type: 'ordered-list', value: compContainer.querySelector('textarea').value });
+                }
                 else if (type === 'badges') {
                     projectData.push({ type: 'badges', value: compContainer.querySelector('input').value });
                 }
@@ -1917,6 +1956,9 @@
                             item.querySelector('textarea').value = comp.value;
                         }
                         else if (comp.type === 'list') {
+                            item.querySelector('textarea').value = comp.value;
+                        }
+                        else if (comp.type === 'ordered-list') {
                             item.querySelector('textarea').value = comp.value;
                         }
                         else if (comp.type === 'badges') {
