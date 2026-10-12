@@ -1,0 +1,2076 @@
+<!DOCTYPE html>
+<html lang="de">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Produktbeschreibung HTML Builder</title>
+
+    <!-- NeoTec GmbH / René Sachse / 01979 Lauchhammer / Germany v1.2 (20261012) -->
+
+    <!-- SortableJS für einfaches Drag & Drop laden -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Sortable/1.15.7/Sortable.min.js"></script>
+    <!-- Bootstrap 5 CSS für die Live-Vorschau laden -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com//ajax/libs/bootstrap/5.3.3/css/bootstrap.min.css">
+    <!-- CDN für js-beautify (HTML-Formatierer) -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/js-beautify/2.0.3/beautify-html.js"></script>
+
+    <style>
+        /* Standard: Light Mode Variablen */
+        :root {
+            --bg-primary: #f8f9fa;
+            --bg-sidebar: #ffffff;
+            --bg-canvas: #ffffff;
+            --bg-input: #ffffff;
+            --text-color: #212529;
+            --border-color: #dee2e6;
+            --template-item-bg-color: #f9f9f9;
+            --template-item-hover-color: #f0f0f0;
+            --live-preview-text-color: #212529;
+        }
+
+        /* Dark Mode Variablen (greifen, wenn body[data-theme="dark"] aktiv ist) */
+        body[data-theme="dark"] {
+            --bg-primary: #121212;
+            --bg-sidebar: #1e1e1e;
+            --bg-canvas: #1e1e1e;
+            --bg-input: #2d2d2d;
+            --text-color: #e0e0e0;
+            --border-color: #444444;
+            --template-item-bg-color: #444444;
+            --template-item-hover-color: #555555;
+            --live-preview-text-color: #212529;
+        }
+
+        /* Wende die Variablen auf deine bestehenden Editor-Elemente an: */
+        body {
+            background-color: var(--bg-primary);
+            color: var(--text-color);
+            transition: background-color 0.3s, color 0.3s;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            margin: 0;
+            display: flex;
+            height: 100vh;
+        }
+
+        .sidebar {
+            background-color: var(--bg-sidebar);
+            border-right: 1px solid var(--border-color);
+        }
+
+        #canvas {
+            background-color: var(--bg-canvas);
+        }
+
+        /* Deine Eingabefelder und Textareas im Editor */
+        .component-container input,
+        .component-container textarea,
+        .component-container select {
+            background-color: var(--bg-input) !important;
+            color: var(--text-color) !important;
+            border: 1px solid var(--border-color) !important;
+        }
+
+        .component-container label {
+            color: var(--text-color);
+            opacity: 0.8;
+        }
+
+        /* Seitenleiste mit Vorlagen und Snippets - Jetzt voll scrollbar */
+        .sidebar {
+            background-color: var(--bg-sidebar);
+            width: 280px;
+            height: 100vh;
+            /* Zwingt die Sidebar auf die exakte Bildschirmhöhe */
+            border-right: 1px solid var(--border-color);
+            padding: 20px;
+            box-sizing: border-box;
+            overflow-y: auto;
+            /* Aktiviert den vertikalen Scrollbalken, sobald der Inhalt zu lang wird */
+            flex-shrink: 0;
+            /* Verhindert, dass die Sidebar vom Hauptbereich zusammengedrückt wird */
+        }
+
+
+        .sidebar h3 {
+            margin-top: 0;
+        }
+
+        .template-item {
+            background: var(--template-item-bg-color);
+            border: 1px dashed #b0b0b0;
+            padding: 12px;
+            margin-bottom: 10px;
+            cursor: grab;
+            border-radius: 6px;
+            user-select: none;
+            display: block;
+            /* Wichtig für Drag-Bereich */
+            transition: background 0.2s;
+        }
+
+        .template-item:hover {
+            background: var(--template-item-hover-color);
+        }
+
+        /* Der Hauptbereich füllt die volle Bildschirmhöhe aus */
+        .main-content {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            padding: 20px;
+            height: 100vh;
+            box-sizing: border-box;
+            overflow: hidden;
+            /* Verhindert ein vertikales Scrollen des gesamten Fensters */
+        }
+
+        /* Die Arbeitsfläche (Canvas): Nutzt nun die volle dynamische Höhe */
+        .canvas {
+            flex: 1;
+            /* Teilt sich den Platz im Workspace */
+            background: var(--bg-canvas);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 20px;
+            height: 100%;
+            /* Füllt die volle Höhe des elastischen Workspaces aus */
+            overflow-y: auto;
+            /* Interner Scrollbalken wird erst aktiv, wenn zu viele Bausteine drin liegen */
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.02);
+        }
+
+        /* ID-Selektor korrigiert für Klassenkompatibilität */
+        #canvas,
+        .canvas {
+            background-color: var(--bg-canvas) !important;
+        }
+
+
+        /* Platzhalter, wenn Arbeitsfläche leer ist */
+        .canvas:empty::before {
+            content: "Bausteine hierher ziehen, um die Beschreibung aufzubauen...";
+            color: #aaa;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 200px;
+            border: 2px dashed #ccc;
+            border-radius: 6px;
+        }
+
+        /* Dynamisch erzeugte Bausteine auf dem Canvas */
+        .canvas-item {
+            background: var(--bg-sidebar);
+            /* KORREKTUR: Nutzt jetzt die dynamische Hintergrundfarbe */
+            color: var(--text-color);
+            /* KORREKTUR: Nutzt die dynamische Textfarbe */
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            padding: 15px;
+            margin-bottom: 15px;
+            position: relative;
+            /* Ein dezent angepasster Schatten, der im Dark Mode nicht unangenehm strahlt */
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.15);
+            display: block;
+        }
+
+        .canvas-item .handle {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            cursor: move;
+            color: #aaa;
+            font-size: 18px;
+            user-select: none;
+        }
+
+        .canvas-item .delete-btn {
+            position: absolute;
+            bottom: 10px;
+            right: 10px;
+            background: #ff4d4f;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            padding: 4px 8px;
+            cursor: pointer;
+            font-size: 12px;
+        }
+
+        /* Labels (Beschriftungen über den Feldern) im Dark Mode lesbar machen */
+        .canvas-item label {
+            display: block;
+            font-size: 12px;
+            font-weight: bold;
+            color: var(--text-color) !important;
+            /* Wechselt nun sauber mit */
+            opacity: 0.7;
+            /* Leicht gedimmt für den klassischen Label-Look */
+            margin-bottom: 5px;
+        }
+
+        /* Generelle Anpassung für alle Inputs, Textareas und Selects innerhalb der Canvas-Bausteine */
+        .canvas-item input,
+        .canvas-item textarea,
+        .canvas-item select {
+            background-color: var(--bg-input) !important;
+            color: var(--text-color) !important;
+            border: 1px solid var(--border-color) !important;
+            width: 100%;
+            padding: 8px;
+            border-radius: 4px;
+            box-sizing: border-box;
+            font-family: inherit;
+            transition: background-color 0.2s, color 0.2s, border-color 0.2s;
+        }
+
+        /* Kleiner Bonus: Ändert auch die Farbe des blinkenden Text-Cursors im Dark Mode */
+        .canvas-item input,
+        .canvas-item textarea {
+            caret-color: var(--text-color);
+        }
+
+        /* Das Code-Fenster unten bleibt fixiert und schiebt nichts weg */
+        .output-area {
+            height: 180px;
+            /* Eine angenehme feste Höhe für den Code */
+            background: #272822;
+            color: #f8f8f2;
+            padding: 15px;
+            border-radius: 6px;
+            font-family: monospace;
+            white-space: pre-wrap;
+            overflow-y: auto;
+        }
+
+        .btn-export {
+            align-self: flex-start;
+            background: var(--primary-color);
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: bold;
+        }
+
+        /* Das Live-Vorschaufenster: Zwillingsbruder des Canvas */
+        #live-preview,
+        .live-preview {
+            flex: 1;
+            /* Gleiche Breite und Dehnung wie das Canvas */
+            background: #ffffff;
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 20px;
+            height: 100%;
+            /* Zwingt die Vorschau auf exakt dieselbe Höhe wie das Canvas */
+            overflow-y: auto;
+            /* Internes Scrollen für lange Beschreibungen */
+            color: var(--live-preview-text-color);
+        }
+
+        #snippet-list .template-item {
+            font-size: 13px;
+            padding: 8px 12px;
+            background: var(--bg-input);
+            border: 1px solid var(--border-color);
+            color: var(--text-color);
+            border-radius: 4px;
+        }
+
+        #snippet-list .template-item:hover {
+            background: var(--template-item-hover-color);
+        }
+
+        /* Globale, dynamische Scrollbalken für das gesamte Editor-Interface */
+        ::-webkit-scrollbar {
+            width: 8px;
+            /* Breite des vertikalen Scrollbalkens */
+            height: 8px;
+            /* Höhe des horizontalen Scrollbalkens */
+        }
+
+        /* Der Hintergrund der Scrollleiste (Schiene) */
+        ::-webkit-scrollbar-track {
+            background: transparent;
+            /* Bleibt unsichtbar, damit es sich dem Hintergrund anpasst */
+        }
+
+        /* Der bewegliche Balken (Thumb) - Wechselt nun vollautomatisch das Design! */
+        ::-webkit-scrollbar-thumb {
+            background-color: var(--border-color);
+            /* Nutzt deine dynamische Rahmenfarbe */
+            border-radius: 4px;
+            border: 2px solid transparent;
+            /* Erzeugt einen sauberen Abstand zum Rand */
+            background-clip: padding-box;
+        }
+
+        /* Hover-Effekt: Wird beim Drüberfahren mit der Maus leicht kräftiger */
+        ::-webkit-scrollbar-thumb:hover {
+            filter: brightness(1.2);
+            /* Macht den Balken im Dark Mode heller, im Light Mode dunkler */
+            background-color: #888888;
+            /* Universeller Fallback-Wert für perfekten Kontrast */
+        }
+
+        /* Firefox-Unterstützung (für moderne Versionen) */
+        * {
+            scrollbar-width: thin;
+            scrollbar-color: var(--border-color) transparent;
+        }
+
+        /* 📊 NEU: Ein flexibler Zwischen-Container, der Canvas und Vorschau nebeneinander hält */
+        /* Falls du diesen Container in deinem HTML noch nicht hast, siehe Schritt 2! */
+        .editor-workspace {
+            flex: 1;
+            /* Beansprucht automatisch den maximalen Platz nach unten */
+            display: flex;
+            gap: 20px;
+            min-height: 0;
+            /* Ein extrem wichtiger CSS-Trick für Flexbox-Scrolling! */
+            margin-bottom: 15px;
+            /* Abstand zum Code-Ausgabefenster unten */
+        }
+
+        /* Styling für die dynamischen Snippet-Kacheln */
+        .snippet-item-container {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            background: var(--bg-input);
+            border: 1px solid var(--border-color);
+            color: var(--text-color);
+            padding: 8px 12px;
+            border-radius: 4px;
+            font-size: 13px;
+            transition: background 0.2s;
+        }
+
+        .snippet-item-container:hover {
+            background: var(--template-item-hover-color);
+        }
+
+        .snippet-btn-main {
+            background: transparent;
+            border: none;
+            color: inherit;
+            text-align: left;
+            cursor: pointer;
+            flex: 1;
+            padding: 0;
+            font-size: inherit;
+        }
+
+        .snippet-actions {
+            display: flex;
+            gap: 8px;
+            align-items: center;
+        }
+
+        .snippet-action-btn {
+            background: transparent;
+            border: none;
+            cursor: pointer;
+            padding: 2px 4px;
+            font-size: 12px;
+            border-radius: 3px;
+            opacity: 0.5;
+            transition: opacity 0.2s, background 0.2s;
+        }
+
+        .snippet-action-btn:hover {
+            opacity: 1;
+            background: rgba(0, 0, 0, 0.1);
+        }
+
+        body[data-theme="dark"] .snippet-action-btn:hover {
+            background: rgba(255, 255, 255, 0.1);
+        }
+
+        /* Zoom-Effekt für die Modell-Kachel 
+        .advanced-zoom-container {
+            overflow: hidden;
+            display: inline-block;
+            cursor: zoom-in;
+        }
+
+        .advanced-zoom-img {
+            max-height: 220px;
+            width: auto;
+            mix-blend-mode: multiply;
+            transition: transform 0.1s ease-out;
+            transform-origin: center center;
+        }
+
+        .advanced-zoom-container:hover .advanced-zoom-img {
+            transform: scale(2.8);
+        }*/
+    </style>
+    <style>
+        :root {
+            --blue: #007bff;
+            --indigo: #6610f2;
+            --purple: #6f42c1;
+
+            --pink: #e83e8c;
+            --red: #dc3545;
+
+            --orange: #fd7e14;
+            --yellow: #ffc107;
+
+            --green: #28a745;
+            --teal: #20c997;
+            --cyan: #17a2b8;
+
+            --white: #ffffff;
+            --gray: #707070;
+            --gray-dark: #343a40;
+            --primary: #F8BF00;
+            --secondary: #525252;
+            --success: #1C871E;
+            --info: #525252;
+            --warning: #f39932;
+            --danger: #b90000;
+            --light: #f5f7fa;
+            --dark: #525252;
+            --gray: #707070;
+            --gray-light: #f5f7fa;
+            --gray-medium: #ebebeb;
+            --gray-dark: #9b9b9b;
+            --gray-darker: #525252;
+            --breakpoint-xs: 0;
+            --breakpoint-sm: 576px;
+            --breakpoint-md: 768px;
+            --breakpoint-lg: 992px;
+            --breakpoint-xl: 1300px;
+            --font-family-sans-serif: "Open Sans", sans-serif;
+            --font-family-monospace: SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+        }
+    </style>
+    <style>
+        /* Custom Colors https://htmlcolorcodes.com/ */
+        :root {
+            --azure: #F0FFFF;
+            --light-blue: #ADD8E6;
+            --dark-orcid: #9932CC;
+            --steel-blue: #4682B4;
+            --medium-violet-red: #C71585;
+            --sea-green: #2E8B57;
+            --olive-drab: #6B8E23;
+        }
+    </style>
+</head>
+
+<body>
+
+    <!-- SIDERBAR: Die Baustein-Vorlagen -->
+    <div class="sidebar" id="sidebar">
+        <h3>Bausteine</h3>
+        <!-- draggable="true" erzwingt das Ziehen im Browser -->
+        <div class="template-item" data-type="heading" draggable="true">🏷️ Überschrift</div>
+        <div class="template-item" data-type="subheading" draggable="true">📝 Unterüberschrift (Lead)</div>
+        <div class="template-item" data-type="section-heading" draggable="true">🏷️ Zwischenüberschrift (H5)</div>
+        <div class="template-item" data-type="text" draggable="true">📝 Textabsatz</div>
+        <div class="template-item" data-type="list" draggable="true">📋 Feature-Liste</div>
+        <div class="template-item" data-type="badges" draggable="true">🏷️ Feature-Badges</div>
+        <div class="template-item" data-type="display-list" draggable="true">📺 Display-Werte</div>
+        <div class="template-item" data-type="info-box" draggable="true">ℹ️ Info-Box (Alert)</div>
+        <div class="template-item" data-type="footer-links" draggable="true">🐾 Fußzeile (Links)</div>
+        <div class="template-item" data-type="custom-html" draggable="true">💻 Eigener HTML-Code</div>
+        <div class="template-item" data-type="centered-image" draggable="true">🖼️ Zentriertes Bild</div>
+        <div class="template-item" data-type="small-notice" draggable="true">⚖️ Hinweis (Kleintext)</div>
+        <div class="template-item" data-type="keywords" draggable="true">🔑 Keywords-Box</div>
+        <div class="template-item" data-type="model-breakdown" draggable="true">🔍 Modellaufschlüsselung (Kachel)</div>
+
+
+        <hr style="border-color: var(--border-color); margin: 20px 0;">
+        <!-- Kopfzeile mit "+" Button -->
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+            <h3 style="margin: 0;">📋 Code-Snippets</h3>
+            <button class="btn-export" style="padding: 2px 8px; font-size: 16px; background: #28a745;"
+                onclick="openSnippetModal()">＋</button>
+        </div>
+
+        <!-- Container für die dynamisch generierten Snippet-Buttons -->
+        <div id="snippet-list" style="display: flex; flex-direction: column; gap: 8px;">
+            <!-- Wird per JavaScript befüllt -->
+        </div>
+
+    </div>
+
+    <!-- HAUPTBEREICH: Aufgeteilt in Editor und Live-Vorschau -->
+    <div class="main-content">
+        <h2>Produktbeschreibung Editor (JTL Nova/NeoTec)</h2>
+
+        <!-- 🔥 Der Workspace für die beiden elastischen Fenster -->
+        <div class="editor-workspace">
+            <!-- Linkes Fenster -->
+            <div class="canvas" id="canvas"></div>
+
+            <!-- Rechtes Fenster -->
+            <div id="live-preview"></div>
+        </div>
+
+        <!-- Code-Ausgabe-Bereich: Jetzt mit Kopier-Button -->
+        <div style="flex-shrink: 0; margin-top: 15px;">
+            <div style="display: flex; align-items: center;">
+                <h4>Generierter HTML-Code</h4>
+
+                <!-- Eine Gruppe für die Buttons, die sich automatisch nach rechts schiebt -->
+                <div style="margin-left: auto; display: flex; align-items: center; gap: 8px;">
+
+                    <!-- In deiner Button-Gruppe unten ergänzen: -->
+                    <button id="btn-clear" class="btn-export"
+                        style="background: #dc3545; padding: 5px 15px; font-size: 14px;"
+                        onclick="clearCanvasWithConfirm()">
+                        🗑️ Canvas leeren
+                    </button>
+
+                    <!-- NEU: Code formatieren Button -->
+                    <button id="btn-format" class="btn-export"
+                        style="background: #17a2b8; padding: 5px 15px; font-size: 14px;"
+                        onclick="formatGeneratedHTML()">
+                        ✨ Code formatieren
+                    </button>
+
+                    <!-- Der Kopier-Button -->
+                    <button id="btn-copy" class="btn-export"
+                        style="background: #6f42c1; padding: 5px 15px; font-size: 14px;"
+                        onclick="copyHTMLToClipboard()">
+                        📋 Code kopieren
+                    </button>
+
+                    <!-- In deiner Button-Gruppe unten ganz links einfügen -->
+                    <div style="display: flex; gap: 4px; margin-right: 10px;">
+                        <button id="btn-undo" class="btn-export"
+                            style="background: var(--steel-blue); padding: 5px 12px; font-size: 14px;" onclick="undo()"
+                            disabled>↩️</button>
+                        <button id="btn-redo" class="btn-export"
+                            style="background: var(--steel-blue); padding: 5px 12px; font-size: 14px;" onclick="redo()"
+                            disabled>↪️</button>
+                    </div>
+
+                    <!-- NEU: Eingabefeld für den Dateinamen -->
+                    <div
+                        style="display: flex; align-items: center; background: #343a40; padding: 2px 8px; border-radius: 4px; border: 1px solid #6c757d;">
+                        <input type="text" id="project-filename" value="Dateiname"
+                            style="background: transparent; color: #fff; border: none; font-size: 14px; width: 180px; outline: none;"
+                            placeholder="Dateiname">
+                        <span style="color: #6c757d; font-size: 14px; user-select: none;">.json</span>
+                    </div>
+
+                    <!-- Speichern-Button -->
+                    <button class="btn-export" style="background: #2852a7; padding: 5px 15px; font-size: 14px;"
+                        onclick="saveProject()">💾
+                        Projekt Speichern</button>
+
+                    <!-- Laden-Button -->
+                    <button class="btn-export" style="background: #28a745; padding: 5px 15px; font-size: 14px;"
+                        onclick="document.getElementById('file-input').click()">📂 Projekt Laden</button>
+                    <input type="file" id="file-input" style="display: none;" accept=".json"
+                        onchange="loadProject(this)">
+                    <!-- Der Theme-Umschalter -->
+                    <button id="theme-toggle" class="btn-export"
+                        style="background: #555454; padding: 5px 12px; font-size: 14px;" onclick="toggleTheme()">
+                        🌙 Dark Mode
+                    </button>
+                </div>
+            </div>
+            <div class="output-area" id="html-output" style="height: 150px; margin-top: 5px;">&lt;!-- Hier erscheint
+                dein HTML-Code --&gt;</div>
+        </div>
+    </div>
+
+    <!-- SNIPPET MODAL WINDOW -->
+    <div id="snippet-modal"
+        style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); z-index: 10000; justify-content: center; align-items: center;">
+        <div
+            style="background: var(--bg-sidebar); border: 1px solid var(--border-color); color: var(--text-color); padding: 25px; border-radius: 8px; width: 500px; max-width: 90%; box-shadow: 0 10px 25px rgba(0,0,0,0.3);">
+            <h3 id="modal-title" style="margin-top: 0;">Neues Snippet hinzufügen</h3>
+
+            <input type="hidden" id="modal-snippet-id">
+
+            <div style="margin-bottom: 15px;">
+                <label
+                    style="display: block; font-size: 12px; font-weight: bold; margin-bottom: 5px;">Snippet-Name</label>
+                <input type="text" id="modal-snippet-name" placeholder="z.B. Highlight-Badge"
+                    style="width: 100%; padding: 8px; background: var(--bg-input); color: var(--text-color); border: 1px solid var(--border-color); border-radius: 4px; box-sizing: border-box;">
+            </div>
+
+            <div style="margin-bottom: 20px;">
+                <label style="display: block; font-size: 12px; font-weight: bold; margin-bottom: 5px;">HTML / JS
+                    Quellcode</label>
+                <textarea id="modal-snippet-code" rows="8"
+                    style="width: 100%; padding: 8px; background: var(--bg-input); color: var(--text-color); border: 1px solid var(--border-color); border-radius: 4px; font-family: monospace; box-sizing: border-box;"
+                    placeholder="<!-- Code hier einfügen -->"></textarea>
+            </div>
+
+            <div style="display: flex; justify-content: flex-end; gap: 10px;">
+                <button class="btn-export" style="background: #6c757d; padding: 6px 15px; font-size: 14px;"
+                    onclick="closeSnippetModal()">Abbrechen</button>
+                <button class="btn-export" style="background: #28a745; padding: 6px 15px; font-size: 14px;"
+                    onclick="saveDynamicSnippet()">Speichern</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // 1. Globale Hilfsfunktionen (müssen außerhalb stehen, damit onclick/oninput sie finden)
+
+        // HTML-Vorlagen für die Eingabefelder im Canvas erzeugen
+        function createInputTemplate(type) {
+            const handle = `<div class="handle">⋮⋮</div>`;
+            const deleteBtn = `<button class="delete-btn" style="background-color: #dc3545; color: #ffffff; border: none; border-radius: 50%; width: 24px; height: 24px; padding: 0; line-height: 22px; font-size: 13px; cursor: pointer; font-weight: bold; box-shadow: 0 2px 4px rgba(0,0,0,0.2);" onclick="this.parentElement.remove(); updateHTMLOutput();">🗙</button>`;
+
+            if (type === 'heading') {
+                return `${handle}
+                <div data-comp-type="heading">
+                    <label>ÜBERSCHRIFT (H2)</label>
+                    <input type="text" value="MID zugelassener, digitaler, multifunktionaler und bidirektional messender 1‑Phasen-Wechselstromzähler" oninput="updateHTMLOutput()">
+                </div>${deleteBtn}`;
+            }
+            if (type === 'text') {
+                return `${handle}
+                <div data-comp-type="text">
+                    <label>TEXTABSATZ</label>
+                    <textarea rows="3" oninput="updateHTMLOutput()">Schreiben Sie hier Details über Ihr Produkt...</textarea>
+                </div>${deleteBtn}`;
+            }
+            if (type === 'list') {
+                return `${handle}
+                <div data-comp-type="list">
+                    <label>LISTENELEMENTE (semikolontrennt)</label>
+                    <textarea rows="3" oninput="updateHTMLOutput()">Verbrauchsüberwachung bei Camping, Ferienappartements, Garagenkomplexen, Büros, Untervermietungen, Einliegerwohnungen, Baustromverteilern, Verkaufswagen oder Verteilern auf Wochenmärkten; Energy-Management-Systeme, Prüfmessungen von Verteilungen; Verbrauchsermittlung an Heizungen oder Pumpen; Steuerungs- und Verteilerbau, Regeltechnik; Für Prüfmessungen bei geringen Platzverhältnissen; Gebäudeautomation, Klimatechnik, BHKW; Schaltanlagenbau, Gewerbe und Installationshandwerk; Allgemeine Verbrauchsmessungen in/von Unterverteilungen für Abrechnung gegenüber Dritten geeignet; geeichte / MID-zugelassene Ausführung für Abrechnungszwecke geeignet! Zulassung beträgt 8 Jahre ab Eichjahr</textarea>
+                    <!--<input type="text" rows="3" value="Verbrauchsüberwachung bei Camping, Ferienappartements, Garagenkomplexen, Büros, Untervermietungen, Einliegerwohnungen, Baustromverteilern, Verkaufswagen oder Verteilern auf Wochenmärkten; Energy-Management-Systeme, Prüfmessungen von Verteilungen; Verbrauchsermittlung an Heizungen oder Pumpen; Steuerungs- und Verteilerbau, Regeltechnik; Für Prüfmessungen bei geringen Platzverhältnissen; Gebäudeautomation, Klimatechnik, BHKW; Schaltanlagenbau, Gewerbe und Installationshandwerk; Allgemeine Verbrauchsmessungen in/von Unterverteilungen für Abrechnung gegenüber Dritten geeignet; geeichte / MID-zugelassene Ausführung für Abrechnungszwecke geeignet! Zulassung beträgt 8 Jahre ab Eichjahr " oninput="updateHTMLOutput()">-->
+                </div>${deleteBtn}`;
+            }
+            if (type === 'badges') {
+                return `${handle}
+            <div data-comp-type="badges">
+                <label>FEATURE-BADGES (Kommagetrennt)</label>
+                <input type="text" value="WS100-1943; MID 2026; Abrechnung; Rückstellbar; Rücklaufsperre; Tageszählwerk; Import; 100A; 230V/AC; S0 opt./elek.; RS485; Zählerplatzmontage; 1TE; LCD beleuchtet; Manipulationsschutz; Multitarif" oninput="updateHTMLOutput()">
+            </div>${deleteBtn}`;
+            }
+            if (type === 'display-list') {
+                return `${handle}
+            <div data-comp-type="display-list">
+                <label>DISPLAY-WERTE (Format: Kürzel = Beschreibung ; )</label>
+                <textarea rows="4" oninput="updateHTMLOutput()">kW = aktive / momentane Last in Kilowatt (kW);
+                kWh = aktive / verbrauchte Energie in kWh (Gesamt- und Tageszähler);
+                V = Spannung in Volt;
+                A = Strom in Ampere;
+                F = Netzfrequenz in Hertz (Hz);
+                PF = Leistungsfaktor (cos φ)</textarea>
+            </div>${deleteBtn}`;
+            }
+
+            if (type === 'info-box') {
+                return `${handle}
+            <div data-comp-type="info-box">
+                <label>INFO-BOX (Format: Titel: Text...)</label>
+                <textarea rows="3" oninput="updateHTMLOutput()">Rechtlicher Hinweis: Die Ausführung ist MID-zugelassen und für verbrauchsabhängige Abrechnungen gegenüber Dritten gesetzlich gültig. Die Eichgültigkeit der MID beträgt 8 Jahre ab dem Eichjahr.</textarea>
+            </div>${deleteBtn}`;
+            }
+
+            if (type === 'footer-links') {
+                return `${handle}
+            <div data-comp-type="footer-links">
+                <label>DOWNLOAD-LINK (URL zur Anleitung/PDF)</label>
+                <input type="text" value="https://www.digitalzaehler.com/mediafiles/Manuals/ws50-1xxx_de.pdf" oninput="updateHTMLOutput()">
+            </div>${deleteBtn}`;
+            }
+
+            if (type === 'custom-html') {
+                return `${handle}
+            <div data-comp-type="custom-html">
+                <label>EIGENER HTML-CODE (Wird direkt im Shop/Vorschau ausgegeben)</label>
+                <textarea rows="6" style="font-family: monospace; background: #f8f9fa;" oninput="updateHTMLOutput()"><!-- Hier eigenen HTML-Code eintragen -->\n<div class="p-3 bg-light text-center border rounded">Code-Beispiel</div></textarea>
+            </div>${deleteBtn}`;
+            }
+
+            if (type === 'subheading') {
+                return `${handle}
+            <div data-comp-type="subheading">
+                <label>UNTERÜBERSCHRIFT (LEAD-TEXT)</label>
+                <input type="text" value="Der DRS255BC ist ein summierender Zähler mit frei rückstellbarem Tageszählwerk." oninput="updateHTMLOutput()">
+            </div>${deleteBtn}`;
+            }
+
+            if (type === 'section-heading') {
+                return `${handle}
+            <div data-comp-type="section-heading">
+                <label>ZWISCHENÜBERSCHRIFT (H5)</label>
+                <input type="text" value="Echtzeit-Messwerte auf dem LCD-Display" oninput="updateHTMLOutput()">
+            </div>${deleteBtn}`;
+            }
+
+            if (type === 'centered-image') {
+                return `${handle}
+            <div data-comp-type="centered-image" style="display: flex; flex-direction: column; gap: 8px;">
+                <label>ZENTRIERTES BILD</label>
+                <div>
+                    <span style="font-size: 11px; opacity: 0.7;">Bild-URL:</span>
+                    <input type="text" class="img-src" value="https://www.digitalzaehler.com/media/image/product/212/lg/sdm120db-mid-stromzaehler-1-phase-s0~2.webp" oninput="updateHTMLOutput()">
+                </div>
+                <div>
+                    <span style="font-size: 11px; opacity: 0.7;">Alternativtext (Alt-Tag):</span>
+                    <input type="text" class="img-alt" value="Eastron SDM120-DB MID Stromzähler 1-Phase" oninput="updateHTMLOutput()">
+                </div>
+                <div>
+                    <span style="font-size: 11px; opacity: 0.7;">Maximale Breite (z.B. 400px):</span>
+                    <input type="text" class="img-width" value="400px" oninput="updateHTMLOutput()">
+                </div>
+            </div>${deleteBtn}`;
+            }
+
+            if (type === 'small-notice') {
+                return `${handle}
+            <div data-comp-type="small-notice">
+                <label>HINWEIS / KLEINTEXT</label>
+                <input type="text" value="Hinweis zu Produktbildern: Die Abbildungen sind beispielhaft und können minimal vom gelieferten Produkt abweichen." oninput="updateHTMLOutput()">
+            </div>${deleteBtn}`;
+            }
+
+            if (type === 'keywords') {
+                return `${handle}
+            <div data-comp-type="keywords">
+                <label>KEYWORDS (SEO-BLOCK)</label>
+                <textarea rows="4" oninput="updateHTMLOutput()">Treppenlichtautomat RD-TSL, B+G e-tech Treppenlichtautomat, Treppenlichtzeitschalter Hutschiene, Treppenhausautomat 230V, Treppenlichtautomat 3- und 4-Leiterschaltung, Elektronischer Zeitschalter TH35, Zeitschaltuhr für Treppenhaus Beleuchtung, Treppenlichtzeitschalter stufenlos einstellbar, Reiheneinbaugerät 1 TE 18mm, Treppenlichtautomat IP20, Hutschienen Zeitschalter 10A, B+G e-tech 1391103, Treppenhaus Zeitschaltuhr, Lichtsteuerrelais Hutschiene, DIN-Rail Zeitschalter</textarea>
+            </div>${deleteBtn}`;
+            }
+
+            if (type === 'model-breakdown') {
+                return `${handle}
+            <div data-comp-type="model-breakdown" style="display: flex; flex-direction: column; gap: 8px;">
+                <label>MODELLAUFSCHLÜSSELUNG KACHEL</label>
+                <div>
+                    <span style="font-size: 11px; opacity: 0.7;">Titel der Kachel:</span>
+                    <input type="text" class="mb-title" value="Modellaufschlüsselung (DRS255BC)" oninput="updateHTMLOutput()">
+                </div>
+                <div>
+                    <span style="font-size: 11px; opacity: 0.7;">Bild-URL (Rechte Spalte):</span>
+                    <input type="text" class="mb-img" value="https://www.digitalzaehler.com/media/image/product/266/lg/stromzaehler_51.webp" oninput="updateHTMLOutput()">
+                </div>
+                <div>
+                    <span style="font-size: 11px; opacity: 0.7;">Aufschlüsselung (Format: Key - Text ; ):</span>
+                    <textarea rows="5" class="mb-list" oninput="updateHTMLOutput()">DR - DIN-Rail (Hutschienenmontage);
+S - Single-Phase (Einphasen-Wechselstromzähler);
+2 - Teilungseinheiten (TE);
+55 - Stromstärkespezifikation (Grenzstrom 50A + Nennstrom 5A);
+B - Blue (Blau hinterleuchtetes LCD-Display);
+C - Cycle / Counter (Rückstellbares Tageszählwerk)</textarea>
+                </div>
+            </div>${deleteBtn}`;
+            }
+
+
+            return '';
+        }
+
+        // HTML Generator: Liest das Canvas von oben nach unten aus
+        function updateHTMLOutput() {
+
+            // 🔥 GANZ AM ANFANG ERGÄNZEN:
+            pushToHistory();
+
+            const canvas = document.getElementById('canvas');
+            const htmlOutput = document.getElementById('html-output');
+            if (!canvas || !htmlOutput) return;
+
+            const items = canvas.querySelectorAll('.canvas-item [data-comp-type]');
+            let generatedHTML = '';
+
+            generatedHTML += `<!--Tab: Beschreibung-->\n`;
+            generatedHTML += `<div class="product-description">\n`;
+
+            items.forEach(item => {
+                const type = item.getAttribute('data-comp-type');
+
+                if (type === 'heading') {
+                    const value = item.querySelector('input').value;
+                    // KORREKTUR: Erzeugt exakt h1 mit den Klassen h2 und mb-2
+                    generatedHTML += `<!-- ÜBERSCHRIFT -->\n`;
+                    generatedHTML += `<h1 class="h2 mb-2">${escapeHTML(value)}</h1>\n`;
+                }
+
+                else if (type === 'text') {
+                    const value = item.querySelector('textarea').value;
+                    const formattedText = escapeHTML(value).replace(/\n/g, '<br>\n');
+                    generatedHTML += `<!-- BESCHREIBUNGSTEXT -->\n`;
+                    generatedHTML += `<p>${formattedText}</p>\n`;
+                }
+                else if (type === 'list') {
+                    // KORREKTUR: Liest nun die neue textarea aus statt des inputs
+                    const value = item.querySelector('textarea').value;
+
+                    // Trennt den Text bei jedem Semikolon (;) statt beim Komma
+                    const listItems = value.split(';').map(i => i.trim()).filter(i => i.length > 0);
+
+                    generatedHTML += `<!-- LISTE -->\n`;
+                    generatedHTML += `<div class="application-examples mb-5">\n`;
+                    //generatedHTML += `<h3 class="h4 font-weight-bold mb-4">Typische Anwendungsbereiche</h3>\n`;
+                    generatedHTML += `<ul>\n`;
+                    listItems.forEach(li => {
+                        generatedHTML += `  <li>${escapeHTML(li)}</li>\n`;
+                    });
+                    generatedHTML += `</ul>\n`;
+                    generatedHTML += `</div>\n`;
+                }
+                else if (type === 'badges') {
+                    const value = item.querySelector('input').value;
+                    const badgeItems = value.split(';').map(b => b.trim()).filter(b => b.length > 0);
+
+                    generatedHTML += `<!-- BADGES -->\n`;
+                    generatedHTML += `    <div class="feature-badges mb-4 ">\n`;
+
+                    badgeItems.forEach(badgeText => {
+                        const key = badgeText.toLowerCase();
+
+                        // 1. Standard-Konfigurationen (Fallback-Werte)
+                        let url = 'https://digitalzaehler.com';
+                        let target = '_blank';
+                        let color = 'var(--gray-dark)';
+                        let textClass = 'text-light';
+
+                        // 2. Dynamische Mustererkennung per regulärem Ausdruck (Regex) oder Text-Prüfung
+
+                        // MUSTER A: Stromstärke (z.B. 50A, 60A, 16 Ampere, 10(100)A)
+                        // Prüft, ob irgendwo eine Zahl steht, gefolgt von einem optionalen Leerzeichen und einem "a" am Ende, ODER ob das Wort "ampere" vorkommt.
+                        if (/\d+\s*a$/.test(key) || key.includes('amp')) {
+                            url = 'https://www.digitalzaehler.com/Lexikon#faq-grenzstrom';
+                            color = 'var(--cyan)';
+                        }
+                        // MUSTER B: Spannung (z.B. 230V, 400V, 230V/AC)
+                        else if (/\d+\s*v/.test(key) || key.includes('volt')) {
+                            url = 'https://www.digitalzaehler.com/Lexikon#faq-spannung';
+                            color = 'var(--yellow)';
+                            textClass = 'text-dark'; // Gelb braucht dunklen Text
+                        }
+                        // MUSTER C: Teilungseinheiten (z.B. 2TE, 1TE, 4 TE, 2-TE)
+                        // Prüft, ob eine Zahl steht, gefolgt von optionalen Zeichen und dem Kürzel "te" am Ende, ODER ob das Wort "teilung" vorkommt.
+                        else if (/\d+.*te$/.test(key) || key.includes('teilung')) {
+                            url = 'https://www.digitalzaehler.com/Lexikon#faq-teilungseinheit';
+                            color = 'var(--purple)';
+                        }
+
+                        // 3. Exakte Begriffe abgleichen (für alles, was keine Zahlenmuster hat)
+                        else if (key.includes('drs') || key.includes('ws') || key.includes('flds') || key.includes('flws') || key.includes('sdm') || key.includes('spm') || key.includes('drt') || key.includes('ds') || key.includes('dcm') || key.includes('rd') || key.includes('esrd') || key.includes('sct') || key.includes('shunt') || key.includes('nt-mfs-db') || key.includes('gs-16')) {
+                            url = '';
+                            target = '_self';
+                            color = 'var(--blue)';
+                        }
+                        else if (key === 'rückstellbar') {
+                            url = 'https://www.digitalzaehler.com/Lexikon#faq-rueckstellbar';
+                            color = 'var(--orange)';
+                        }
+                        else if (key === 'tageszählwerk') {
+                            url = 'https://www.digitalzaehler.com/Lexikon#faq-tageszaehlwerk';
+                            color = 'var(--green)';
+                        }
+                        else if (key.includes('import') || key.includes('einrichtungszähler')) {
+                            url = 'https://www.digitalzaehler.com/Lexikon#faq-einrichtungszaehler';
+                            color = 'var(--teal)';
+                        }
+                        else if (key.includes('import') || key.includes('export') || key.includes('zweirichtungszähler')) {
+                            url = 'https://www.digitalzaehler.com/Lexikon#faq-zweirichtungszaehler';
+                            color = 'var(--teal)';
+                        }
+                        else if (key.includes('s0')) {
+                            url = 'https://www.digitalzaehler.com/Lexikon#faq-s0-schnittstelle';
+                            color = 'var(--indigo)';
+                        }
+                        else if (key.includes('rs485')) {
+                            url = 'https://www.digitalzaehler.com/Lexikon#faq-rs485-schnittstelle';
+                            color = 'var(--indigo)';
+                        }
+                        else if (key.includes('lcd')) {
+                            url = 'https://www.digitalzaehler.com/Lexikon#faq-lcd';
+                            color = 'var(--light-blue)';
+                            textClass = 'text-dark'; // dunklen Text
+                        }
+                        else if (key.includes('abrechnung')) {
+                            url = 'https://www.digitalzaehler.com/Lexikon#faq-abrechnung';
+                            color = 'var(--red)';
+                        }
+                        else if (key.includes('mid')) {
+                            url = 'https://www.digitalzaehler.com/Lexikon#faq-mid-zulassung';
+                            color = 'var(--pink)';
+                        }
+                        else if (key.includes('rücklaufsperre')) {
+                            url = 'https://www.digitalzaehler.com/Lexikon#faq-ruecklaufgesperrt';
+                            color = 'var(--dark)';
+                        }
+                        else if (key.includes('zählerplatz')) {
+                            url = 'https://www.digitalzaehler.com/Lexikon#faq-zaehlerplatzmontage';
+                            color = 'var(--purple)';
+                        }
+                        else if (key.includes('manipulation')) {
+                            url = 'https://www.digitalzaehler.com/Lexikon#faq-manipulationsschutz';
+                            color = 'var(--gray)';
+                        }
+                        else if (key.includes('multitarif')) {
+                            url = 'https://www.digitalzaehler.com/Lexikon#faq-multitarif';
+                            color = '#a825c2;';
+                        }
+
+                        else if (key.includes('rollenzählwerk')) {
+                            url = 'https://www.digitalzaehler.com/Lexikon#faq-rollenzaehlwerk';
+                            color = 'var(--gray-dark)';
+                        }
+
+                        else if (key.includes('tuya')) {
+                            url = 'https://www.digitalzaehler.com/Lexikon#faq-tuya';
+                            color = 'var(--steel-blue)';
+                        }
+                        else if (key.includes('wifi') || key.includes('wlan')) {
+                            url = 'https://www.digitalzaehler.com/Lexikon#faq-faq-wlan-wifi';
+                            color = 'var(--medium-violet-red)';
+                        }
+                        else if (key.includes('prepaid')) {
+                            url = 'https://www.digitalzaehler.com/Lexikon#faq-prepaid';
+                            color = 'var(--dark-orcid)';
+                        }
+                        else if (key.includes('zeitschalt')) {
+                            url = 'https://www.digitalzaehler.com/Lexikon#faq-zeitschaltfunktion';
+                            color = 'var(--sea-green)';
+                        }
+                        else if (key.includes('passwortschutz')) {
+                            url = 'https://www.digitalzaehler.com/Lexikon#faq-passwortschutz';
+                            color = 'var(--gray)';
+                        }
+                        else if (key.includes('statistik')) {
+                            url = 'https://www.digitalzaehler.com/Lexikon#faq-statistik';
+                            color = 'var(--olive-drap)';
+                        }
+
+
+                        // 4. HTML zusammenbauen
+                        generatedHTML += `        <a href="${url}" target="${target}"><span\n`;
+                        generatedHTML += `                class="badge ${textClass} p-2 me-1 mb-1" style="background-color: ${color};">${escapeHTML(badgeText)}</span></a>\n`;
+                    });
+
+                    generatedHTML += `    </div>\n`;
+                }
+                else if (type === 'display-list') {
+                    const value = item.querySelector('textarea').value;
+                    // Trennt die Zeilen am Semikolon
+                    const lines = value.split(';').map(l => l.trim()).filter(l => l.length > 0);
+
+                    generatedHTML += `<!-- DISPLAY LIST -->\n`;
+                    generatedHTML += `    <ul class="list-group list-group-flush mb-4" style="max-width: 600px;">\n`;
+
+                    lines.forEach(line => {
+                        // Trennt das Kürzel von der Beschreibung am ersten "=" Zeichen
+                        const parts = line.split('=');
+                        if (parts.length >= 2) {
+                            const kuerzel = parts[0].trim();
+                            // Falls es mehrere "=" gab, fügen wir den Rest der Beschreibung wieder zusammen
+                            const beschreibung = parts.slice(1).join('=').trim();
+
+                            generatedHTML += `        <li class="list-group-item py-1 px-0">\n`;
+                            generatedHTML += `            <strong>${escapeHTML(kuerzel)}</strong> - ${escapeHTML(beschreibung)}\n`;
+                            generatedHTML += `        </li>\n`;
+                        } else {
+                            // Fallback, falls mal ein "=" vergessen wurde, wird die ganze Zeile normal ausgegeben
+                            generatedHTML += `        <li class="list-group-item py-1 px-0">${escapeHTML(line)}</li>\n`;
+                        }
+                    });
+
+                    generatedHTML += `    </ul>\n`;
+                }
+
+                else if (type === 'info-box') {
+                    const value = item.querySelector('textarea').value;
+
+                    // 1. Umlaute konvertieren, aber den Text für die Code-Box sicher machen
+                    const processedValue = escapeHTML(value);
+
+                    // Trennt den Titel vom Text beim ersten Doppelpunkt
+                    const colonIndex = processedValue.indexOf(':');
+
+                    let boxHTML = '';
+                    boxHTML += `<!-- INFO BOX -->\n`;
+                    boxHTML += `    <div class="alert alert-info mt-4 border-0" role="alert">\n`;
+
+                    if (colonIndex !== -1) {
+                        const titel = processedValue.substring(0, colonIndex).trim();
+                        const text = processedValue.substring(colonIndex + 1).trim();
+
+                        boxHTML += `<strong>${titel}:</strong> ${text}\n`;
+                    } else {
+                        boxHTML += processedValue;
+                    }
+
+                    boxHTML += `</div>\n`;
+
+                    // 2. Den Code ganz normal für die Quellcode-Ausgabe sichern
+                    generatedHTML += boxHTML;
+
+                    // 3. SPEZIAL-FIX FÜR DIE LIVE-VORSCHAU: 
+                    // Wir erlauben der Live-Vorschau explizit, die entwerteten <strong> Tags wieder als echtes HTML zu parsen
+                    /*setTimeout(() => {
+                        const livePreview = document.getElementById('live-preview');
+                        if (livePreview) {
+                            // Repariert die codierten spitzen Klammern exakt für die Darstellung im Vorschaufenster
+                            livePreview.innerHTML = livePreview.innerHTML
+                                .replace(/&lt;strong&gt;/g, '<strong>')
+                                .replace(/&lt;\/strong&gt;/g, '</strong>');
+                        }
+                    }, 0);*/
+                }
+
+                else if (type === 'footer-links') {
+                    const manualUrl = item.querySelector('input').value.trim();
+
+                    generatedHTML += `<!-- FOOTER LINKS -->\n`;
+                    generatedHTML += `    <div class="additional-links text-center py-3 bg-white rounded d-flex flex-wrap justify-content-center align-items-center" style="gap: 20px;">\n`;
+                    // 1. Dynamischer Download-Button mit der eingetragenen URL
+                    generatedHTML += `        <a class="btn btn-sm btn-primary" href="${escapeHTML(manualUrl)}">💾 Bedienungsanleitung </a>\n`;
+                    // 2. Fixer Lexikon-Button
+                    generatedHTML += `        <a class="btn btn-sm btn-outline-secondary" target="_blank" href="https://www.digitalzaehler.com/Lexikon" style="color: var(--dark);"> 💡 Fachbegriffe im Lexikon erkl&auml;ren </a>\n`;
+                    generatedHTML += `    </div>\n`;
+                }
+                else if (type === 'custom-html') {
+                    const rawHTML = item.querySelector('textarea').value;
+
+                    // Wir verpacken den Code in eindeutige Marker-Kommentare, 
+                    // damit die Vorschau weiß, wo der rohe Code anfängt und aufhört
+                    generatedHTML += `<!-- CUSTOM-HTML-START -->\n${rawHTML}\n<!-- CUSTOM-HTML-END -->\n`;
+
+                    // SPEZIAL-FIX FÜR DIE LIVE-VORSCHAU:
+                    // Wir erlauben dem Vorschaufenster, die vom globalen textContent entwerteten Klammern 
+                    // dieses spezifischen Bausteins wieder in echtes, renderbares HTML zurückzuwandeln.
+                    setTimeout(() => {
+                        const livePreview = document.getElementById('live-preview');
+                        if (livePreview) {
+                            // Wir schneiden den Bereich zwischen unseren Markern aus und wandeln die Entities zurück
+                            const regex = /&lt;!-- CUSTOM-HTML-START --&gt;([\s\(\S\)]*?)&lt;!-- CUSTOM-HTML-END --&gt;/g;
+                            livePreview.innerHTML = livePreview.innerHTML.replace(regex, (match, code) => {
+                                // Konvertiert die Sicherheits-Entities zurück in echte HTML-Klammern
+                                return code
+                                    .replace(/&lt;/g, '<')
+                                    .replace(/&gt;/g, '>')
+                                    .replace(/&amp;/g, '&')
+                                    .replace(/&quot;/g, '"')
+                                    .replace(/&#39;/g, "'");
+                            });
+                        }
+                    }, 0);
+                }
+
+                else if (type === 'subheading') {
+                    const value = item.querySelector('input').value;
+                    // Erzeugt exakt das gewünschte p-Tag mit den Klassen lead und text-muted
+                    generatedHTML += `<!-- UNTERÜBERSCHRIFT -->\n`;
+                    generatedHTML += `<p class="lead text-muted">${escapeHTML(value)}</p>\n`;
+                }
+
+                else if (type === 'section-heading') {
+                    const value = item.querySelector('input').value;
+                    // Erzeugt exakt das gewünschte h5-Tag mit fetter Schrift und Abständen
+                    generatedHTML += `<!-- ZWISCHENÜBERSCHRIFT (H5) -->\n`;
+                    generatedHTML += `<h5 class="font-weight-bold mt-4 mb-2">${escapeHTML(value)}</h5>\n`;
+                }
+
+                else if (type === 'centered-image') {
+                    const src = item.querySelector('.img-src').value;
+                    const alt = item.querySelector('.img-alt').value;
+                    const maxWidth = item.querySelector('.img-width').value || '400px';
+
+                    // Erzeugt exakt deinen gewünschten zentrierten Bild-Code
+                    generatedHTML += `<!-- ZENTRIERTES BILD -->\n`;
+                    generatedHTML += `<div class="d-flex justify-content-center my-4">\n`;
+                    generatedHTML += `    <img src="${escapeHTML(src)}" alt="${escapeHTML(alt)}" class="img-fluid" style="max-width: ${escapeHTML(maxWidth)};">\n`;
+                    generatedHTML += `</div>\n`;
+                }
+
+                else if (type === 'small-notice') {
+                    const value = item.querySelector('input').value;
+                    // Erzeugt einen dezenten, kleinen Hinweistext
+                    generatedHTML += `<!-- HINWEIS (KLEINTEXT) -->
+                    <p class="small text-muted text-center mt-2 mb-3">${escapeHTML(value)}</p>\n`;
+                }
+
+                else if (type === 'keywords') {
+                    const value = item.querySelector('textarea').value;
+                    // Generiert exakt deine Bootstrap-Keywords-Card
+                    generatedHTML += `<!-- KEYWORDS (SEOBLOCK) -->\n`;
+                    generatedHTML += `<div class="keywords card bg-light border-0 p-3 mb-5">\n`;
+                    generatedHTML += `    <h5 class="font-weight-bold mb-3">Keywords</h5>\n`;
+                    generatedHTML += `    ${escapeHTML(value)}\n`;
+                    generatedHTML += `</div>\n`;
+                }
+
+                else if (type === 'model-breakdown') {
+                    const title = item.querySelector('.mb-title').value;
+                    const imgSrc = item.querySelector('.mb-img').value;
+                    const listValue = item.querySelector('.mb-list').value;
+
+                    const lines = listValue.split(';').map(l => l.trim()).filter(l => l.length > 0);
+
+                    generatedHTML += `    <!-- TYPENBEZEICHNUNG ALS DEZENTE BOX -->\n`;
+                    generatedHTML += `    <div class="modell-name-description-list card bg-light border-0 p-3 mb-5">\n`;
+                    generatedHTML += `        <div class="row align-items-center">\n`;
+                    generatedHTML += `            <!-- Linke Spalte: Text -->\n`;
+                    generatedHTML += `            <div class="col-12 col-md-8 col-lg-9">\n`;
+                    generatedHTML += `                <h5 class="fw-bold mb-3" style="color: #212529 !important;">${escapeHTML(title)}</h5>\n`;
+                    generatedHTML += `                <ul class="list-unstyled mb-0">\n`;
+
+                    lines.forEach(line => {
+                        const hyphenIndex = line.indexOf('-');
+                        if (hyphenIndex !== -1) {
+                            const key = line.substring(0, hyphenIndex).trim();
+                            const text = line.substring(hyphenIndex + 1).trim();
+                            generatedHTML += `                    <li class="mb-2" style="color: #212529 !important;"><strong>${escapeHTML(key)}:</strong> ${escapeHTML(text)}</li>\n`;
+                        } else {
+                            generatedHTML += `                    <li class="mb-2" style="color: #212529 !important;">${escapeHTML(line)}</li>\n`;
+                        }
+                    });
+
+                    generatedHTML += `                </ul>\n`;
+                    generatedHTML += `            </div>\n`;
+                    generatedHTML += `            <!-- Rechte Spalte: Bild mit Lupe -->\n`;
+                    generatedHTML += `            <div class="col-12 col-md-4 col-lg-3 text-center mt-3 mt-md-0 overflow-hidden" style="position: relative;">\n`;
+                    generatedHTML += `                <div class="advanced-zoom-container jtl-hover-zoom">\n`;
+                    generatedHTML += `                    <img src="${escapeHTML(imgSrc)}" class="img-fluid advanced-zoom-img" alt="Modellbild">\n`;
+                    generatedHTML += `                </div>\n`;
+                    generatedHTML += `            </div>\n`;
+                    generatedHTML += `        </div>\n`;
+                    generatedHTML += `    </div>\n`;
+                    generatedHTML += `<style>
+                    .advanced-zoom-container {
+                        overflow: hidden;
+                        display: inline-block;
+                        cursor: zoom-in;
+                    }
+
+                    .advanced-zoom-img {
+                        max-height: 220px;
+                        width: auto;
+                        mix-blend-mode: multiply;
+                        transition: transform 0.1s ease-out;
+                        transform-origin: center center;
+                    }
+
+                    .advanced-zoom-container:hover .advanced-zoom-img {
+                        transform: scale(2.8);
+                    }
+                </style>\n`;
+                    generatedHTML += `<!-- Multi-Element-sicheres JavaScript via Klassen -->
+                    <script>
+                        document.querySelectorAll('.jtl-hover-zoom').forEach(function (container) {
+                            const img = container.querySelector('.advanced-zoom-img');
+
+                            container.addEventListener('mousemove', function (e) {
+                                const rect = container.getBoundingClientRect();
+                                const xPercent = ((e.clientX - rect.left) / rect.width) * 100;
+                                const yPercent = ((e.clientY - rect.top) / rect.height) * 100;
+                                img.style.transformOrigin = xPercent + '% ' + yPercent + '%';
+                            });
+
+                            container.addEventListener('mouseleave', function () {
+                                img.style.transformOrigin = 'center center';
+                            });
+                        });
+                    <\/script>\n`;
+
+                }
+
+            });
+
+            generatedHTML += `</div>`;
+            htmlOutput.textContent = generatedHTML || '';
+
+            // Schreibt den Code als echtes, gerendertes HTML in den Bootstrap-Container
+            const livePreview = document.getElementById('live-preview');
+            if (livePreview) {
+                livePreview.innerHTML = generatedHTML || '<p class="text-muted">Noch keine Inhalte vorhanden...</p>';
+            }
+
+            saveToLocalStorage();
+        }
+
+        // Hilfsfunktion gegen XSS, HTML-Fehler und zur Umlaut-Konvertierung
+        function escapeHTML(str) {
+            // 1. Zuerst die Standard-HTML-Sicherheitszeichen ersetzen
+            let escaped = str.replace(/[&<>'"]/g,
+                tag => ({
+                    '&': '&amp;',
+                    '<': '&lt;',
+                    '>': '&gt;',
+                    "'": '&#39;',
+                    '"': '&quot;'
+                }[tag] || tag)
+            );
+
+            // 2. Danach deutsche Umlaute und Sonderzeichen in HTML-Entities umwandeln
+            const umlautMap = {
+                'ä': '&html;&auml;', 'ö': '&ouml;', 'ü': '&uuml;',
+                'Ä': '&Auml;', 'Ö': '&Ouml;', 'Ü': '&Uuml;',
+                'ß': '&szlig;'
+            };
+
+            //return escaped.replace(/[äöüÄÖÜß]/g, match => umlautMap[match]);
+            return escaped;
+        }
+
+        // 2. Drag & Drop Initialisierung nach dem Laden der Seite
+        document.addEventListener("DOMContentLoaded", function () {
+            const sidebar = document.getElementById('sidebar');
+            const canvas = document.getElementById('canvas');
+
+            // Prüfen, ob Sortable geladen wurde
+            if (typeof Sortable === 'undefined') {
+                alert("Fehler: Die Drag&Drop-Bibliothek konnte nicht geladen werden.");
+                return;
+            }
+
+            // SortableJS für die Seitenleiste
+            new Sortable(sidebar, {
+                group: {
+                    name: 'shared',
+                    pull: 'clone',
+                    put: false
+                },
+                sort: false,
+                animation: 150
+            });
+
+            // SortableJS für die Arbeitsfläche (Canvas)
+            new Sortable(canvas, {
+                group: 'shared',
+                animation: 150,
+                onAdd: function (evt) {
+                    const item = evt.item;
+                    const type = item.getAttribute('data-type');
+
+                    if (type) {
+                        item.className = 'canvas-item';
+                        item.removeAttribute('data-type');
+                        item.removeAttribute('draggable');
+                        item.innerHTML = createInputTemplate(type);
+                    }
+                    updateHTMLOutput();
+                },
+                onUpdate: function () {
+                    updateHTMLOutput();
+                }
+            });
+        });
+
+        function saveProject() {
+            const canvas = document.getElementById('canvas');
+            const items = canvas.querySelectorAll('.canvas-item');
+            const projectData = [];
+
+            items.forEach(item => {
+                const compContainer = item.querySelector('[data-comp-type]');
+                if (!compContainer) return;
+
+                const type = compContainer.getAttribute('data-comp-type');
+
+                if (type === 'heading') {
+                    projectData.push({ type: 'heading', value: compContainer.querySelector('input').value });
+                }
+                else if (type === 'text') {
+                    projectData.push({ type: 'text', value: compContainer.querySelector('textarea').value });
+                }
+                else if (type === 'list') {
+                    // KORREKTUR: querySelector auf 'textarea' geändert
+                    projectData.push({ type: 'list', value: compContainer.querySelector('textarea').value });
+                }
+                else if (type === 'badges') {
+                    projectData.push({ type: 'badges', value: compContainer.querySelector('input').value });
+                }
+                else if (type === 'display-list') {
+                    projectData.push({ type: 'display-list', value: compContainer.querySelector('textarea').value });
+                }
+                else if (type === 'info-box') {
+                    projectData.push({ type: 'info-box', value: compContainer.querySelector('textarea').value });
+                }
+                else if (type === 'footer-links') {
+                    projectData.push({ type: 'footer-links', value: compContainer.querySelector('input').value });
+                }
+                else if (type === 'custom-html') {
+                    projectData.push({ type: 'custom-html', value: compContainer.querySelector('textarea').value });
+                }
+                else if (type === 'subheading') {
+                    projectData.push({ type: 'subheading', value: compContainer.querySelector('input').value });
+                }
+                else if (type === 'section-heading') {
+                    projectData.push({ type: 'section-heading', value: compContainer.querySelector('input').value });
+                }
+                else if (type === 'centered-image') {
+                    projectData.push({
+                        type: 'centered-image',
+                        src: compContainer.querySelector('.img-src').value,
+                        alt: compContainer.querySelector('.img-alt').value,
+                        maxWidth: compContainer.querySelector('.img-width').value
+                    });
+                }
+                else if (type === 'small-notice') {
+                    projectData.push({ type: 'small-notice', value: compContainer.querySelector('input').value });
+                }
+
+                else if (type === 'keywords') {
+                    projectData.push({ type: 'keywords', value: compContainer.querySelector('textarea').value });
+                }
+
+                else if (type === 'model-breakdown') {
+                    projectData.push({
+                        type: 'model-breakdown',
+                        title: compContainer.querySelector('.mb-title').value,
+                        imgSrc: compContainer.querySelector('.mb-img').value,
+                        listValue: compContainer.querySelector('.mb-list').value
+                    });
+                }
+
+
+            });
+
+            // 2. Den Dateinamen aus dem Eingabefeld auslesen
+            const filenameInput = document.getElementById('project-filename');
+            let filename = filenameInput ? filenameInput.value.trim() : 'Dateiname';
+
+            // Fallback, falls das Feld komplett leer gelöscht wurde
+            if (!filename) {
+                filename = 'Dateiname';
+            }
+
+            // Sicherstellen, dass die Endung .json angehängt wird
+            const fullFilename = filename.endsWith('.json') ? filename : `${filename}.json`;
+
+            // Speicherdatei bauen
+            const saveData = {
+                filename: filename,
+                components: projectData
+            };
+
+            // 3. Datei-Download triggern
+            const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(saveData, null, 4));
+            const downloadAnchorNode = document.createElement('a');
+            downloadAnchorNode.setAttribute("href", dataStr);
+            downloadAnchorNode.setAttribute("download", fullFilename); // Hier greift der dynamische Name!
+            document.body.appendChild(downloadAnchorNode);
+            downloadAnchorNode.click();
+            downloadAnchorNode.remove();
+        }
+
+        function loadProject(input) {
+            const file = input.files[0]; // Greift direkt auf die Datei zu
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = function (e) {
+                try {
+                    const projectData = JSON.parse(e.target.result);
+                    const canvas = document.getElementById('canvas');
+
+                    canvas.innerHTML = '';
+
+                    // 1. Dateinamen wiederherstellen
+                    if (projectData.filename && document.getElementById('project-filename')) {
+                        document.getElementById('project-filename').value = projectData.filename;
+                    }
+
+                    projectData.components.forEach(comp => {
+                        const item = document.createElement('div');
+                        item.className = 'canvas-item';
+
+                        // Vorlagen-HTML generieren und ins Canvas hängen
+                        item.innerHTML = createInputTemplate(comp.type);
+                        canvas.appendChild(item);
+
+                        // Werte in die Eingabefelder zurückschreiben
+                        if (comp.type === 'heading') {
+                            item.querySelector('input').value = comp.value;
+                        }
+                        else if (comp.type === 'text') {
+                            item.querySelector('textarea').value = comp.value;
+                        }
+                        else if (comp.type === 'list') {
+                            // KORREKTUR: Schreibt den geladenen Text in die 'textarea' zurück
+                            item.querySelector('textarea').value = comp.value;
+                        }
+                        else if (comp.type === 'badges') {
+                            item.querySelector('input').value = comp.value;
+                        }
+                        else if (comp.type === 'display-list') {
+                            item.querySelector('textarea').value = comp.value;
+                        }
+                        else if (comp.type === 'info-box') {
+                            item.querySelector('textarea').value = comp.value;
+                        }
+                        else if (comp.type === 'footer-links') {
+                            item.querySelector('input').value = comp.value;
+                        }
+                        else if (comp.type === 'custom-html') {
+                            item.querySelector('textarea').value = comp.value;
+                        }
+                        else if (comp.type === 'subheading') {
+                            item.querySelector('input').value = comp.value;
+                        }
+                        else if (comp.type === 'section-heading') {
+                            item.querySelector('input').value = comp.value;
+                        }
+                        else if (comp.type === 'centered-image') {
+                            item.querySelector('.img-src').value = comp.src || '';
+                            item.querySelector('.img-alt').value = comp.alt || '';
+                            item.querySelector('.img-width').value = comp.maxWidth || '400px';
+                        }
+                        else if (comp.type === 'small-notice') {
+                            item.querySelector('input').value = comp.value;
+                        }
+
+                        else if (comp.type === 'keywords') {
+                            item.querySelector('textarea').value = comp.value;
+                        }
+
+                        else if (comp.type === 'model-breakdown') {
+                            item.querySelector('.mb-title').value = comp.title || '';
+                            item.querySelector('.mb-img').value = comp.imgSrc || '';
+                            item.querySelector('.mb-list').value = comp.listValue || '';
+                        }
+
+
+                    });
+
+                    // HTML-Code-Ausgabe ganz am Ende aktualisieren
+                    updateHTMLOutput();
+                    input.value = '';
+
+                } catch (error) {
+                    alert("Fehler beim Laden der Projektdatei. Ist die Datei beschädigt?");
+                    console.error(error);
+                }
+            };
+            reader.readAsText(file);
+        }
+
+        function copyHTMLToClipboard() {
+            const htmlOutput = document.getElementById('html-output');
+            const copyBtn = document.getElementById('btn-copy');
+
+            if (!htmlOutput || !htmlOutput.textContent) return;
+
+            // Den Textinhalt der Code-Box in die Zwischenablage schreiben
+            navigator.clipboard.writeText(htmlOutput.textContent)
+                .then(() => {
+                    // Visuelles Feedback: Button kurz grün färben und Text ändern
+                    const originalText = copyBtn.innerHTML;
+                    const originalBg = copyBtn.style.backgroundColor;
+
+                    copyBtn.innerHTML = "✅ Kopiert!";
+                    copyBtn.style.backgroundColor = "#28a745";
+
+                    // Nach 2 Sekunden den Button wieder in den Originalzustand versetzen
+                    setTimeout(() => {
+                        copyBtn.innerHTML = originalText;
+                        copyBtn.style.backgroundColor = originalBg;
+                    }, 2000);
+                })
+                .catch(err => {
+                    alert("Fehler beim Kopieren in die Zwischenablage: " + err);
+                });
+        }
+
+        function toggleTheme() {
+            const body = document.body;
+            const btn = document.getElementById('theme-toggle');
+
+            if (body.getAttribute('data-theme') === 'dark') {
+                // Zu Light Mode wechseln
+                body.removeAttribute('data-theme');
+                btn.innerHTML = '🌙 Dark Mode';
+                localStorage.setItem('editor_theme', 'light');
+            } else {
+                // Zu Dark Mode wechseln
+                body.setAttribute('data-theme', 'dark');
+                btn.innerHTML = '☀️ Light Mode';
+                localStorage.setItem('editor_theme', 'dark');
+            }
+        }
+
+        // Beim Laden der Seite den gespeicherten Zustand wiederherstellen
+        window.addEventListener('DOMContentLoaded', () => {
+            const savedTheme = localStorage.getItem('editor_theme');
+            const body = document.body;
+            const btn = document.getElementById('theme-toggle');
+
+            if (savedTheme === 'dark') {
+                body.setAttribute('data-theme', 'dark');
+                if (btn) btn.innerHTML = '☀️ Light Mode';
+            }
+        });
+
+        // Globale Variable für deine dynamischen Snippets
+        let DYNAMIC_SNIPPETS = [];
+
+        // Standard-Snippets, falls der Speicher noch komplett leer ist
+        const DEFAULT_SNIPPETS = [
+            {
+                id: "default_alert",
+                name: "🔔 Bootstrap Alert",
+                code: `<div class="alert alert-warning alert-dismissible fade show" role="alert">\n    <strong>Achtung!</strong> Dieses Angebot gilt nur für kurze Zeit.\n</div>`
+            },
+            {
+                id: "default_badge",
+                name: "🏷️ Shop Badge (Neu)",
+                code: `<span class="badge badge-success font-weight-bold p-2">⚡ TOP SELLER</span>`
+            }
+        ];
+
+        // Initialisiert und lädt die Snippets aus dem LocalStorage
+        function initSnippets() {
+            const saved = localStorage.getItem('editor_dynamic_snippets');
+            if (saved) {
+                try {
+                    DYNAMIC_SNIPPETS = JSON.parse(saved);
+                } catch (e) {
+                    DYNAMIC_SNIPPETS = [...DEFAULT_SNIPPETS];
+                }
+            } else {
+                DYNAMIC_SNIPPETS = [...DEFAULT_SNIPPETS];
+                localStorage.setItem('editor_dynamic_snippets', JSON.stringify(DYNAMIC_SNIPPETS));
+            }
+            renderSnippetList();
+        }
+
+        // Erzeugt die Buttons in der Sidebar neu
+        function renderSnippetList() {
+            const listContainer = document.getElementById('snippet-list');
+            if (!listContainer) return;
+
+            listContainer.innerHTML = '';
+
+            DYNAMIC_SNIPPETS.forEach(snippet => {
+                const container = document.createElement('div');
+                container.className = 'snippet-item-container';
+
+                container.innerHTML = `
+            <button class="snippet-btn-main" onclick="insertDynamicSnippet('${snippet.id}')">${escapeHTML(snippet.name)}</button>
+            <div class="snippet-actions">
+                <button class="snippet-action-btn" title="Snippet bearbeiten" onclick="openSnippetModal('${snippet.id}')">✏️</button>
+                <button class="snippet-action-btn" title="Snippet löschen" style="color: #ff4d4f;" onclick="deleteSnippet('${snippet.id}')">❌</button>
+            </div>
+        `;
+                listContainer.appendChild(container);
+            });
+        }
+
+        // Öffnet das Modal (entweder leer für ein neues, oder befüllt zum Bearbeiten)
+        function openSnippetModal(id = null) {
+            const modal = document.getElementById('snippet-modal');
+            const title = document.getElementById('modal-title');
+            const idInput = document.getElementById('modal-snippet-id');
+            const nameInput = document.getElementById('modal-snippet-name');
+            const codeInput = document.getElementById('modal-snippet-code');
+
+            if (id) {
+                // Bearbeitungs-Modus
+                const snippet = DYNAMIC_SNIPPETS.find(s => s.id === id);
+                if (snippet) {
+                    title.innerText = "Snippet bearbeiten";
+                    idInput.value = snippet.id;
+                    nameInput.value = snippet.name;
+                    codeInput.value = snippet.code;
+                }
+            } else {
+                // Erstellungs-Modus
+                title.innerText = "Neues Snippet hinzufügen";
+                idInput.value = "";
+                nameInput.value = "";
+                codeInput.value = "";
+            }
+
+            modal.style.display = "flex";
+        }
+
+        function closeSnippetModal() {
+            document.getElementById('snippet-modal').style.display = "none";
+        }
+
+        // Speichert oder aktualisiert ein Snippet
+        function saveDynamicSnippet() {
+            const id = document.getElementById('modal-snippet-id').value;
+            const name = document.getElementById('modal-snippet-name').value.trim();
+            const code = document.getElementById('modal-snippet-code').value;
+
+            if (!name) {
+                alert("Bitte gib einen Namen für das Snippet ein.");
+                return;
+            }
+
+            if (id) {
+                // Existierendes Snippet aktualisieren
+                const snippet = DYNAMIC_SNIPPETS.find(s => s.id === id);
+                if (snippet) {
+                    snippet.name = name;
+                    snippet.code = code;
+                }
+            } else {
+                // Völlig neues Snippet generieren
+                const newId = "snippet_" + Date.now();
+                DYNAMIC_SNIPPETS.push({ id: newId, name: name, code: code });
+            }
+
+            // Im Speicher hinterlegen und Liste aktualisieren
+            localStorage.setItem('editor_dynamic_snippets', JSON.stringify(DYNAMIC_SNIPPETS));
+            renderSnippetList();
+            closeSnippetModal();
+        }
+
+        // Löscht ein Snippet nach Bestätigung
+        function deleteSnippet(id) {
+            if (confirm("Möchtest du dieses Snippet wirklich unwiderruflich löschen?")) {
+                DYNAMIC_SNIPPETS = DYNAMIC_SNIPPETS.filter(s => s.id !== id);
+                localStorage.setItem('editor_dynamic_snippets', JSON.stringify(DYNAMIC_SNIPPETS));
+                renderSnippetList();
+            }
+        }
+
+        // Fügt das ausgewählte Snippet an der Cursorposition in die Custom-HTML Textarea ein
+        function insertDynamicSnippet(id) {
+            const snippet = DYNAMIC_SNIPPETS.find(s => s.id === id);
+            if (!snippet) return;
+
+            // Nutzt exakt deine bewährte Einfüge-Logik aus dem vorigen Schritt
+            if (!lastActiveTextarea || !document.body.contains(lastActiveTextarea)) {
+                const firstCustomHtml = document.querySelector('[data-comp-type="custom-html"] textarea');
+                if (firstCustomHtml) {
+                    lastActiveTextarea = firstCustomHtml;
+                } else {
+                    alert("Bitte ziehe zuerst einen 'Custom HTML'-Baustein auf das Canvas und klicke in das Textfeld.");
+                    return;
+                }
+            }
+
+            const txt = lastActiveTextarea;
+            const startPos = txt.selectionStart;
+            const endPos = txt.selectionEnd;
+
+            txt.value = txt.value.substring(0, startPos) + snippet.code + txt.value.substring(endPos, txt.value.length);
+            txt.selectionStart = txt.selectionEnd = startPos + snippet.code.length;
+
+            txt.focus();
+            if (typeof updateHTMLOutput === 'function') {
+                updateHTMLOutput();
+            }
+        }
+
+        // WICHTIG: Starte den Snippet-Manager, sobald das DOM bereit ist
+        window.addEventListener('DOMContentLoaded', initSnippets);
+
+        // Variable, um sich die zuletzt aktive Custom-HTML-Textarea zu merken
+        let lastActiveTextarea = null;
+
+        // Überwacht weltweit, welche Textarea zuletzt angeklickt wurde
+        document.addEventListener('focusin', (e) => {
+            if (e.target.tagName === 'TEXTAREA' && e.target.closest('[data-comp-type="custom-html"]')) {
+                lastActiveTextarea = e.target;
+            }
+        });
+
+        // Fügt das Snippet an der Cursorposition ein
+        function insertSnippet(key) {
+            const code = CODE_SNIPPETS[key];
+            if (!code) return;
+
+            // Wenn keine Textarea aktiv ist, nehmen wir die allererste Custom-HTML-Box auf dem Canvas
+            if (!lastActiveTextarea || !document.body.contains(lastActiveTextarea)) {
+                const firstCustomHtml = document.querySelector('[data-comp-type="custom-html"] textarea');
+                if (firstCustomHtml) {
+                    lastActiveTextarea = firstCustomHtml;
+                } else {
+                    alert("Bitte ziehe zuerst einen 'Custom HTML'-Baustein auf das Canvas und klicke in das Textfeld.");
+                    return;
+                }
+            }
+
+            const txt = lastActiveTextarea;
+            const startPos = txt.selectionStart;
+            const endPos = txt.selectionEnd;
+
+            // Code an der genauen Cursor-Position einschleusen
+            txt.value = txt.value.substring(0, startPos) + code + txt.value.substring(endPos, txt.value.length);
+
+            // Cursor hinter den eingefügten Code setzen
+            txt.selectionStart = txt.selectionEnd = startPos + code.length;
+
+            // Textfeld wieder fokussieren und Vorschau aktualisieren
+            txt.focus();
+            if (typeof updateHTMLOutput === 'function') {
+                updateHTMLOutput();
+            }
+        }
+
+        function saveToLocalStorage() {
+            const items = document.querySelectorAll('#canvas .canvas-item');
+            const projectData = [];
+
+            items.forEach(item => {
+                // KORREKTUR: Wir suchen zuerst den inneren Container, der das Attribut hat
+                const compContainer = item.querySelector('[data-comp-type]');
+                if (!compContainer) return; // Sicherheitscheck
+
+                // Jetzt holen wir uns den Typen direkt aus dem funktionierenden JTL-Container-Attribut
+                const type = compContainer.getAttribute('data-comp-type');
+
+                if (type === 'heading') {
+                    projectData.push({ type: 'heading', value: compContainer.querySelector('input').value });
+                }
+                else if (type === 'text') {
+                    projectData.push({ type: 'text', value: compContainer.querySelector('textarea').value });
+                }
+                else if (type === 'list') {
+                    projectData.push({ type: 'list', value: compContainer.querySelector('textarea').value });
+                }
+                else if (type === 'badges') {
+                    projectData.push({ type: 'badges', value: compContainer.querySelector('input').value });
+                }
+                else if (type === 'display-list') {
+                    projectData.push({ type: 'display-list', value: compContainer.querySelector('textarea').value });
+                }
+                else if (type === 'info-box') {
+                    projectData.push({ type: 'info-box', value: compContainer.querySelector('textarea').value });
+                }
+                else if (type === 'footer-links') {
+                    projectData.push({ type: 'footer-links', value: compContainer.querySelector('input').value });
+                }
+                else if (type === 'custom-html') {
+                    projectData.push({ type: 'custom-html', value: compContainer.querySelector('textarea').value });
+                }
+                else if (type === 'subheading') {
+                    projectData.push({ type: 'subheading', value: compContainer.querySelector('input').value });
+                }
+                else if (type === 'section-heading') {
+                    projectData.push({ type: 'section-heading', value: compContainer.querySelector('input').value });
+                }
+                else if (type === 'centered-image') {
+                    projectData.push({
+                        type: 'centered-image',
+                        src: compContainer.querySelector('.img-src').value,
+                        alt: compContainer.querySelector('.img-alt').value,
+                        maxWidth: compContainer.querySelector('.img-width').value
+                    });
+                }
+                else if (type === 'small-notice') {
+                    projectData.push({ type: 'small-notice', value: compContainer.querySelector('input').value });
+                }
+
+                else if (type === 'keywords') {
+                    projectData.push({ type: 'keywords', value: compContainer.querySelector('textarea').value });
+                }
+
+                else if (type === 'model-breakdown') {
+                    projectData.push({
+                        type: 'model-breakdown',
+                        title: compContainer.querySelector('.mb-title').value,
+                        imgSrc: compContainer.querySelector('.mb-img').value,
+                        listValue: compContainer.querySelector('.mb-list').value
+                    });
+                }
+
+
+            });
+
+            // Den aktuellen Dateinamen merken
+            const filename = document.getElementById('project-filename')?.value || '';
+
+            const autoSaveData = {
+                filename: filename,
+                components: projectData
+            };
+
+            // Im Browser-Speicher ablegen
+            localStorage.setItem('editor_autosave', JSON.stringify(autoSaveData));
+        }
+
+        function loadFromLocalStorage() {
+            const savedData = localStorage.getItem('editor_autosave');
+            if (!savedData) return; // Nichts da? Dann normal starten.
+
+            try {
+                const autoSaveData = JSON.parse(savedData);
+
+                // 1. Dateinamen wiederherstellen
+                if (autoSaveData.filename && document.getElementById('project-filename')) {
+                    document.getElementById('project-filename').value = autoSaveData.filename;
+                }
+
+                // 2. Komponenten wieder aufs Canvas bringen
+                if (autoSaveData.components && autoSaveData.components.length > 0) {
+                    const canvas = document.getElementById('canvas');
+                    canvas.innerHTML = ''; // Canvas leeren
+
+                    autoSaveData.components.forEach(comp => {
+                        const item = document.createElement('div');
+                        item.className = 'canvas-item';
+
+                        // WICHTIG: Setzt die Attribute, damit SortableJS und updateHTMLOutput() 
+                        // den Typ und Container beim späteren Umsortieren/Speichern wiederfinden!
+                        item.setAttribute('data-type', comp.type);
+
+                        // Vorlagen-HTML generieren und ins Canvas hängen
+                        item.innerHTML = createInputTemplate(comp.type);
+                        canvas.appendChild(item);
+
+                        // Werte eintragen:
+                        if (comp.type === 'heading') {
+                            item.querySelector('input').value = comp.value;
+                        }
+                        else if (comp.type === 'text') {
+                            item.querySelector('textarea').value = comp.value;
+                        }
+                        else if (comp.type === 'list') {
+                            item.querySelector('textarea').value = comp.value;
+                        }
+                        else if (comp.type === 'badges') {
+                            item.querySelector('input').value = comp.value;
+                        }
+                        else if (comp.type === 'display-list') {
+                            item.querySelector('textarea').value = comp.value;
+                        }
+                        else if (comp.type === 'info-box') {
+                            item.querySelector('textarea').value = comp.value;
+                        }
+                        else if (comp.type === 'footer-links') {
+                            item.querySelector('input').value = comp.value;
+                        }
+                        else if (comp.type === 'custom-html') {
+                            item.querySelector('textarea').value = comp.value;
+                        }
+                        else if (comp.type === 'subheading') {
+                            item.querySelector('input').value = comp.value;
+                        }
+                        else if (comp.type === 'section-heading') {
+                            item.querySelector('input').value = comp.value;
+                        }
+                        else if (comp.type === 'centered-image') {
+                            item.querySelector('.img-src').value = comp.src || '';
+                            item.querySelector('.img-alt').value = comp.alt || '';
+                            item.querySelector('.img-width').value = comp.maxWidth || '400px';
+                        }
+                        else if (comp.type === 'small-notice') {
+                            item.querySelector('input').value = comp.value;
+                        }
+                        else if (comp.type === 'keywords') {
+                            item.querySelector('textarea').value = comp.value;
+                        }
+
+                        else if (comp.type === 'model-breakdown') {
+                            item.querySelector('.mb-title').value = comp.title || '';
+                            item.querySelector('.mb-img').value = comp.imgSrc || '';
+                            item.querySelector('.mb-list').value = comp.listValue || '';
+                        }
+
+                    });
+
+                    // Einmalig die Vorschau und das HTML neu berechnen
+                    updateHTMLOutput();
+
+                    // KORREKTUR: Die Zeile "input.value = '';" wurde hier gelöscht, 
+                    // da es im Local-Storage kein Datei-Input-Element abzuräumen gilt.
+                }
+            } catch (e) {
+                console.error("Fehler beim Laden des Autosaves", e);
+            }
+        }
+
+        function formatGeneratedHTML() {
+            const htmlOutput = document.getElementById('html-output');
+            const formatBtn = document.getElementById('btn-format');
+
+            if (!htmlOutput || !htmlOutput.textContent) return;
+
+            // Aktuellen Text aus dem Ausgabefenster holen
+            const rawHTML = htmlOutput.textContent;
+
+            // Optionen für js-beautify definieren
+            const options = {
+                indent_size: 4,                  // 4 Leerzeichen Einrückung
+                indent_char: " ",
+                max_preserve_newlines: 1,        // Verhindert riesige Lücken im Code
+                preserve_newlines: true,
+                keep_array_indentation: false,
+                break_chained_methods: false,
+                indent_scripts: "normal",        // Skripte (wie bei der Modellkachel) sauber mit-einrücken
+                brace_style: "collapse",
+                space_before_conditional: true,
+                unescape_strings: false,
+                jslint_happy: false,
+                end_with_newline: true,
+                wrap_line_length: 0,
+                wrap_attributes: "auto"
+            };
+
+            // Die geladene Bibliotheksfunktion "html_beautify" ausführen
+            if (typeof html_beautify === 'function') {
+                const beautifiedHTML = html_beautify(rawHTML, options);
+
+                // Formatierten Code zurückschreiben
+                htmlOutput.textContent = beautifiedHTML;
+
+                // Visuelles Feedback am Button triggern
+                const originalText = formatBtn.innerHTML;
+                formatBtn.innerHTML = "⚡ Aufgeräumt!";
+                setTimeout(() => {
+                    formatBtn.innerHTML = originalText;
+                }, 1500);
+            } else {
+                console.error("Formatierungs-Bibliothek konnte nicht geladen werden.");
+            }
+        }
+
+        function clearCanvasWithConfirm() {
+            // Sicherheitsabfrage, um versehentliches Löschen zu verhindern
+            if (confirm("Möchtest du das gesamte Canvas wirklich leeren? Alle ungesicherten Bausteine gehen verloren.")) {
+
+                // 1. Das Canvas im DOM komplett leeren
+                const canvas = document.getElementById('canvas');
+                if (canvas) {
+                    canvas.innerHTML = '';
+                }
+
+                // 2. Den Dateinamen auf den Standardwert zurücksetzen
+                const filenameInput = document.getElementById('project-filename');
+                if (filenameInput) {
+                    filenameInput.value = 'Dateiname';
+                }
+
+                // 3. Den LocalStorage-Eintrag für das Autosave löschen
+                localStorage.removeItem('editor_autosave');
+
+                // 4. Die HTML-Ausgabe und die Live-Vorschau neu berechnen (wird nun leer sein)
+                if (typeof updateHTMLOutput === 'function') {
+                    updateHTMLOutput();
+                }
+            }
+        }
+
+        // Zwei Stapel für den Verlauf
+        let undoStack = [];
+        let redoStack = [];
+        const MAX_HISTORY = 30; // Maximale Anzahl an Schritten, die man zurückgehen kann
+        let isHistoryAction = false; // Flag, um Endlosschleifen beim Wiederherstellen zu verhindern
+
+        // Diese Funktion merkt sich den aktuellen Zustand bei jeder Änderung
+        function pushToHistory() {
+            if (isHistoryAction) return; // Wenn die Änderung durch Undo/Redo kam, nicht speichern!
+
+            // Wir holen uns den aktuellen JSON-Stand (Nutze hier exakt deine Logik aus saveToLocalStorage)
+            const items = document.querySelectorAll('#canvas .canvas-item');
+            const components = [];
+
+            items.forEach(item => {
+                const compContainer = item.querySelector('[data-comp-type]');
+                if (!compContainer) return;
+                const type = compContainer.getAttribute('data-comp-type');
+
+                // Werte extrahieren (Hier das kompakte Standard-Mapping)
+                let data = { type: type };
+                if (type === 'centered-image') {
+                    data.src = compContainer.querySelector('.img-src').value;
+                    data.alt = compContainer.querySelector('.img-alt').value;
+                    data.maxWidth = compContainer.querySelector('.img-width').value;
+                } else if (compContainer.querySelector('textarea')) {
+                    data.value = compContainer.querySelector('textarea').value;
+                } else if (compContainer.querySelector('input')) {
+                    data.value = compContainer.querySelector('input').value;
+                }
+                components.push(data);
+            });
+
+            const currentState = JSON.stringify(components);
+
+            // Nur speichern, wenn sich wirklich etwas zum letzten Schritt geändert hat
+            if (undoStack.length > 0 && undoStack[undoStack.length - 1] === currentState) return;
+
+            undoStack.push(currentState);
+            redoStack = []; // Sobald der User neu tippt, wird der Redo-Verlauf gelöscht
+
+            // Begrenzung, damit der Arbeitsspeicher nicht überläuft
+            if (undoStack.length > MAX_HISTORY) {
+                undoStack.shift();
+            }
+
+            updateHistoryButtons();
+        }
+
+        // Macht den letzten Schritt rückgängig
+        function undo() {
+            if (undoStack.length <= 1) return; // Erster Zustand muss bleiben
+
+            // Den aktuellen Zustand vom Undo-Stapel nehmen und auf den Redo-Stapel legen
+            const currentState = undoStack.pop();
+            redoStack.push(currentState);
+
+            // Den davor liegenden Zustand auslesen
+            const previousState = undoStack[undoStack.length - 1];
+            restoreCanvasFromState(previousState);
+        }
+
+        // Holt den rückgängig gemachten Schritt wieder zurück
+        function redo() {
+            if (redoStack.length === 0) return;
+
+            const nextState = redoStack.pop();
+            undoStack.push(nextState);
+
+            restoreCanvasFromState(nextState);
+        }
+
+        // Baut das Canvas basierend auf einem Zustand komplett neu auf
+        function restoreCanvasFromState(stateJSON) {
+            isHistoryAction = true; // Sperre aktivieren
+
+            try {
+                const components = JSON.parse(stateJSON);
+                const canvas = document.getElementById('canvas');
+                canvas.innerHTML = ''; // Canvas leeren
+
+                components.forEach(comp => {
+                    const item = document.createElement('div');
+                    item.className = 'canvas-item';
+                    item.setAttribute('data-type', comp.type);
+                    item.innerHTML = createInputTemplate(comp.type);
+                    canvas.appendChild(item);
+
+                    // Werte zurückschreiben
+                    if (comp.type === 'centered-image') {
+                        item.querySelector('.img-src').value = comp.src || '';
+                        item.querySelector('.img-alt').value = comp.alt || '';
+                        item.querySelector('.img-width').value = comp.maxWidth || '400px';
+                    } else if (item.querySelector('textarea')) {
+                        item.querySelector('textarea').value = comp.value || '';
+                    } else if (item.querySelector('input')) {
+                        item.querySelector('input').value = comp.value || '';
+                    }
+                });
+
+                // Live-Vorschau rendern und im LocalStorage mitsichern
+                if (typeof updateHTMLOutput === 'function') {
+                    updateHTMLOutput();
+                }
+            } catch (e) {
+                console.error("Fehler beim Undo/Redo", e);
+            }
+
+            updateHistoryButtons();
+            isHistoryAction = false; // Sperre aufheben
+        }
+
+        // Schaltet die Buttons aktiv/inaktiv, je nachdem ob Schritte vorhanden sind
+        function updateHistoryButtons() {
+            document.getElementById('btn-undo').disabled = (undoStack.length <= 1);
+            document.getElementById('btn-redo').disabled = (redoStack.length === 0);
+        }
+
+
+        // 🔥 WICHTIG: Die Funktion automatisch ausführen, sobald die Seite lädt
+        window.addEventListener('DOMContentLoaded', loadFromLocalStorage);
+
+    </script>
