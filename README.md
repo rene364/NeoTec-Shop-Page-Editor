@@ -43,3 +43,4 @@ Die Oberfläche ist in drei Bereiche unterteilt:
 - Speichern / Laden
 - Automatisches Speichern und Wiederherstellen mit Local Storage
 - Dark / Light Theme
+- einfache Textformatierung (v1.3)
