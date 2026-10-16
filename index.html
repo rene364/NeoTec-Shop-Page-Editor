@@ -1416,48 +1416,51 @@ Befestigung: DIN-Hutschiene (DIN EN50022) / 2TE 36mm;</textarea>
                 return;
             }
 
-            // SortableJS für die Seitenleiste
-            new Sortable(sidebar, {
+            // 1. Sortable für die Seitenleiste (Sidebar)
+            new Sortable(document.getElementById('sidebar'), {
                 group: {
                     name: 'shared',
-                    pull: 'clone',
-                    put: false
+                    pull: 'clone', // Erlaubt das Klonen in das Canvas
+                    put: false     // Verhindert, dass man Elemente zurück in die Sidebar wirft
                 },
-                sort: false,
+                sort: false,       // Elemente in der Sidebar bleiben an ihrer festen Position
                 animation: 150
             });
 
-            // SortableJS für die Arbeitsfläche (Canvas)
-            /*new Sortable(canvas, {
-                group: 'shared',
+            // 2. Sortable für die Arbeitsfläche (Canvas)
+            new Sortable(document.getElementById('canvas'), {
+                group: 'shared',   // Muss denselben Gruppennamen wie die Sidebar haben
                 animation: 150,
+
+                // KORREKTUR: Wir erlauben als Griff entweder das '.drag-handle' ODER 
+                // das gesamte '.template-item', wenn es frisch aus der Sidebar kommt!
+                handle: '.drag-handle, .template-item',
+
+                ghostClass: 'sortable-ghost',
+
+                // Dieses Event feuert, wenn ein neues Element abgelegt wird
                 onAdd: function (evt) {
                     const item = evt.item;
                     const type = item.getAttribute('data-type');
 
-                    if (type) {
-                        item.className = 'canvas-item';
-                        item.removeAttribute('data-type');
-                        item.removeAttribute('draggable');
-                        item.innerHTML = createInputTemplate(type);
+                    // Verwandelt das rohe Sidebar-Item in einen echten Canvas-Baustein
+                    item.className = 'canvas-item';
+                    item.setAttribute('data-type', type);
+                    item.innerHTML = createInputTemplate(type);
+
+                    if (typeof updateHTMLOutput === 'function') {
+                        updateHTMLOutput();
                     }
-                    updateHTMLOutput();
                 },
-                onUpdate: function () {
-                    updateHTMLOutput();
-                }
-            });*/
-            // Suche deine bestehende Sortable-Initialisierung fürs Canvas und passe sie so an:
-            new Sortable(document.getElementById('canvas'), {
-                animation: 150,
-                handle: '.drag-handle', // 🔥 NEU: Zwingt SortableJS, nur auf das Zieh-Symbol zu hören!
-                ghostClass: 'sortable-ghost',
+
+                // Dieses Event feuert beim Umsortieren innerhalb des Canvas
                 onEnd: function () {
                     if (typeof updateHTMLOutput === 'function') {
                         updateHTMLOutput();
                     }
                 }
             });
+
         });
 
         function saveProject() {
