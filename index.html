@@ -1046,7 +1046,7 @@ Befestigung: DIN-Hutschiene (DIN EN50022) / 2TE 36mm;</textarea>
                             url = 'https://www.digitalzaehler.com/Lexikon#faq-faq-wlan-wifi';
                             color = 'var(--medium-violet-red)';
                         }
-                        else if (key.includes('lan') || key.includes('wlan')) {
+                        else if (key === 'lan' || key === 'wlan') {
                             url = 'https://www.digitalzaehler.com/Lexikon#faq-lan';
                             color = 'var(--medium-violet-red)';
                         }
@@ -1081,7 +1081,7 @@ Befestigung: DIN-Hutschiene (DIN EN50022) / 2TE 36mm;</textarea>
                             color = 'var(--light-pink)';
                             textClass = 'text-dark'; // dunklen Text
                         }
-                        else if (key.includes('bilanzierend')) {
+                        else if (key === 'bilanzierend') {
                             url = 'https://www.digitalzaehler.com/Lexikon#faq-bilanzierend';
                             color = 'var(--light-pink)';
                             textClass = 'text-dark'; // dunklen Text
