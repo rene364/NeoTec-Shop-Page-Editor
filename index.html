@@ -188,7 +188,7 @@
         .canvas-item .delete-btn {
             position: absolute;
             top: 40px;
-            right:10px;
+            right: 10px;
             background: #ff4d4f;
             color: white;
             border: none;
@@ -541,7 +541,7 @@
 
     <!-- HAUPTBEREICH: Aufgeteilt in Editor und Live-Vorschau -->
     <div class="main-content">
-        <h2>Produktbeschreibung Editor - JTL Nova / NeoTec / v1.3 (20261016)</h2>
+        <h2>Produktbeschreibung Editor - JTL Nova / NeoTec / v1.2 (20261012)</h2>
 
         <!-- 🔥 Der Workspace für die beiden elastischen Fenster -->
         <div class="editor-workspace">
@@ -675,7 +675,16 @@
 
         // HTML-Vorlagen für die Eingabefelder im Canvas erzeugen
         function createInputTemplate(type) {
-            const handle = `<div class="handle">⋮⋮</div>`;
+            // Passe die handle-Variable innerhalb von createInputTemplate(type) so an:
+            // Ersetze deine handle-Variable durch diese optimierte Version:
+            const handle = `<div class="drag-handle" style="position: absolute; top: 8px; right: 8px; cursor: grab; width: 26px; height: 26px; display: flex; align-items: center; justify-content: center; opacity: 0.5; transition: opacity 0.2s, background-color 0.2s; border-radius: 4px; user-select: none; z-index: 10;" title="Baustein verschieben" onmouseover="this.style.opacity='1'; this.style.backgroundColor='rgba(255,255,255,0.1)'" onmouseout="this.style.opacity='0.5'; this.style.backgroundColor='transparent'">
+    <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor" style="display: block; pointer-events: none;">
+         <path d="M6 2a1 1 0 1 1-2 0 1 1 0 0 1 2 0zm4 0a1 1 0 1 1-2 0 1 1 0 0 1 2 0zM6 6a1 1 0 1 1-2 0 1 1 0 0 1 2 0zm4 0a1 1 0 1 1-2 0 1 1 0 0 1 2 0zm-4 4a1 1 0 1 1-2 0 1 1 0 0 1 2 0zm4 0a1 1 0 1 1-2 0 1 1 0 0 1 2 0zm-4 4a1 1 0 1 1-2 0 1 1 0 0 1 2 0zm4 0a1 1 0 1 1-2 0 1 1 0 0 1 2 0z" style="pointer-events: none;"/>
+    </svg>
+</div>`;
+
+
+            //const handle = `<div class="handle">⋮⋮</div>`;
             const deleteBtn = `<button class="delete-btn" style="background-color: #dc3545; color: #ffffff; border: none; border-radius: 50%; width: 24px; height: 24px; padding: 0; line-height: 22px; font-size: 13px; cursor: pointer; font-weight: bold; box-shadow: 0 2px 4px rgba(0,0,0,0.2);" onclick="this.parentElement.remove(); updateHTMLOutput();">🗙</button>`;
 
             if (type === 'heading') {
@@ -1419,7 +1428,7 @@ Befestigung: DIN-Hutschiene (DIN EN50022) / 2TE 36mm;</textarea>
             });
 
             // SortableJS für die Arbeitsfläche (Canvas)
-            new Sortable(canvas, {
+            /*new Sortable(canvas, {
                 group: 'shared',
                 animation: 150,
                 onAdd: function (evt) {
@@ -1436,6 +1445,17 @@ Befestigung: DIN-Hutschiene (DIN EN50022) / 2TE 36mm;</textarea>
                 },
                 onUpdate: function () {
                     updateHTMLOutput();
+                }
+            });*/
+            // Suche deine bestehende Sortable-Initialisierung fürs Canvas und passe sie so an:
+            new Sortable(document.getElementById('canvas'), {
+                animation: 150,
+                handle: '.drag-handle', // 🔥 NEU: Zwingt SortableJS, nur auf das Zieh-Symbol zu hören!
+                ghostClass: 'sortable-ghost',
+                onEnd: function () {
+                    if (typeof updateHTMLOutput === 'function') {
+                        updateHTMLOutput();
+                    }
                 }
             });
         });
